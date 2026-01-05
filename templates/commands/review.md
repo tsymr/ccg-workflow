@@ -54,9 +54,37 @@ Then call `mcp__ace-tool__search_context` to get related context:
 
 **并行调用所有配置的审查模型**（使用 `run_in_background: true` 非阻塞执行）：
 
-遍历 `routing.review.models`，为每个模型发送调用：
-- 使用 `reviewer` 角色
-- 输出: `Review comments only. No code modifications.`
+**调用方式**: 使用 `Bash` 工具调用 `codeagent-wrapper`
+
+```bash
+# Codex 代码审查示例
+codeagent-wrapper --backend codex - $PROJECT_DIR <<'EOF'
+ROLE_FILE: ~/.claude/prompts/ccg/codex/reviewer.md
+
+<TASK>
+审查代码: {{待审查的代码变更}}
+关注点: 安全性、性能、错误处理
+</TASK>
+
+OUTPUT: Review comments only. No code modifications.
+EOF
+```
+
+```bash
+# Gemini 代码审查示例
+codeagent-wrapper --backend gemini - $PROJECT_DIR <<'EOF'
+ROLE_FILE: ~/.claude/prompts/ccg/gemini/reviewer.md
+
+<TASK>
+审查代码: {{待审查的代码变更}}
+关注点: 可访问性、响应式设计、设计一致性
+</TASK>
+
+OUTPUT: Review comments only. No code modifications.
+EOF
+```
+
+遍历 `routing.review.models`，为每个模型动态生成上述调用，使用 `reviewer` 角色。
 
 ### Step 3: 综合反馈
 使用 `TaskOutput` 获取所有任务的结果，然后：

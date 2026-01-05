@@ -47,10 +47,39 @@ You are the **Frontend Orchestrator** specializing in UI/UX implementation. You 
 - **fallback**: 调用主模型，失败则调用次模型
 - **round-robin**: 轮询调用
 
-遍历 `routing.frontend.models`，为每个模型发送调用：
+**调用方式**: 使用 `Bash` 工具调用 `codeagent-wrapper`
+
+```bash
+# Gemini 前端原型示例
+codeagent-wrapper --backend gemini - $PROJECT_DIR <<'EOF'
+ROLE_FILE: ~/.claude/prompts/ccg/gemini/frontend.md
+
+<TASK>
+实现 UI 功能: {{前端任务描述}}
+Context: {{从 ace-tool 获取的相关组件和样式}}
+</TASK>
+
+OUTPUT: Unified Diff Patch ONLY. Strictly prohibit any actual modifications.
+EOF
+```
+
+```bash
+# Codex 前端原型示例（如配置中包含）
+codeagent-wrapper --backend codex - $PROJECT_DIR <<'EOF'
+ROLE_FILE: ~/.claude/prompts/ccg/codex/architect.md
+
+<TASK>
+实现 UI 功能: {{前端任务描述}}
+Context: {{从 ace-tool 获取的相关组件和样式}}
+</TASK>
+
+OUTPUT: Unified Diff Patch ONLY. Strictly prohibit any actual modifications.
+EOF
+```
+
+遍历 `routing.frontend.models`，为每个模型动态生成上述调用：
 - **Gemini**: 使用 `frontend` 角色
 - **Codex**: 使用 `architect` 角色（Codex 无专门前端角色）
-- 输出: `Unified Diff Patch ONLY`
 
 **如果 strategy = parallel 且有多个模型**:
 使用 `run_in_background: true` 并行调用所有模型，然后用 `TaskOutput` 收集结果。

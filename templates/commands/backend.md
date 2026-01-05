@@ -47,10 +47,39 @@ You are the **Backend Orchestrator** specializing in server-side logic. You coor
 - **fallback**: 调用主模型，失败则调用次模型
 - **round-robin**: 轮询调用
 
-遍历 `routing.backend.models`，为每个模型发送调用：
+**调用方式**: 使用 `Bash` 工具调用 `codeagent-wrapper`
+
+```bash
+# Codex 后端原型示例
+codeagent-wrapper --backend codex - $PROJECT_DIR <<'EOF'
+ROLE_FILE: ~/.claude/prompts/ccg/codex/architect.md
+
+<TASK>
+实现后端功能: {{后端任务描述}}
+Context: {{从 ace-tool 获取的 API 架构和数据模型}}
+</TASK>
+
+OUTPUT: Unified Diff Patch ONLY. Strictly prohibit any actual modifications.
+EOF
+```
+
+```bash
+# Gemini 后端原型示例（如配置中包含）
+codeagent-wrapper --backend gemini - $PROJECT_DIR <<'EOF'
+ROLE_FILE: ~/.claude/prompts/ccg/gemini/analyzer.md
+
+<TASK>
+实现后端功能: {{后端任务描述}}
+Context: {{从 ace-tool 获取的 API 架构和数据模型}}
+</TASK>
+
+OUTPUT: Unified Diff Patch ONLY. Strictly prohibit any actual modifications.
+EOF
+```
+
+遍历 `routing.backend.models`，为每个模型动态生成上述调用：
 - **Codex**: 使用 `architect` 角色
 - **Gemini**: 使用 `analyzer` 角色（Gemini 无专门后端角色）
-- 输出: `Unified Diff Patch ONLY`
 
 **如果 strategy = parallel 且有多个模型**:
 使用 `run_in_background: true` 并行调用所有模型，然后用 `TaskOutput` 收集结果。

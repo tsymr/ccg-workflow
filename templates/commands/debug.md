@@ -26,9 +26,38 @@ description: UltraThink 多模型调试（Codex 后端诊断 + Gemini 前端诊�
 
 **同时启动两个后台任务**（`run_in_background: true`）：
 
+**调用方式**: 使用 `Bash` 工具调用 `codeagent-wrapper`
+
+```bash
+# Codex 后端诊断
+codeagent-wrapper --backend codex - $PROJECT_DIR <<'EOF'
+ROLE_FILE: ~/.claude/prompts/ccg/codex/debugger.md
+
+<TASK>
+诊断问题: {{问题描述}}
+Context: {{从 ace-tool 获取的相关代码}}
+</TASK>
+
+OUTPUT: Structured diagnostic report. No code modifications.
+EOF
+```
+
+```bash
+# Gemini 前端诊断
+codeagent-wrapper --backend gemini - $PROJECT_DIR <<'EOF'
+ROLE_FILE: ~/.claude/prompts/ccg/gemini/debugger.md
+
+<TASK>
+诊断问题: {{问题描述}}
+Context: {{从 ace-tool 获取的相关代码}}
+</TASK>
+
+OUTPUT: Structured diagnostic report. No code modifications.
+EOF
+```
+
 - **Codex** + `debugger` 角色 → 后端诊断
 - **Gemini** + `debugger` 角色 → 前端诊断
-- 输出: `Structured diagnostic report. No code modifications.`
 
 ### Phase 3: 假设整合
 

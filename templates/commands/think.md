@@ -23,10 +23,39 @@ description: UltraThink 深度分析（双模型并行分析 + 综合见解）
 
 ### Phase 2: 并行深度分析
 **同时调用**（`run_in_background: true`）:
+
+**调用方式**: 使用 `Bash` 工具调用 `codeagent-wrapper`
+
+```bash
+# Codex 后端/系统视角分析
+codeagent-wrapper --backend codex - $PROJECT_DIR <<'EOF'
+ROLE_FILE: ~/.claude/prompts/ccg/codex/analyzer.md
+
+<TASK>
+深度分析: {{问题或场景}}
+Context: {{从 ace-tool 获取的相关代码}}
+</TASK>
+
+OUTPUT: Structured analysis report with clear reasoning.
+EOF
+```
+
+```bash
+# Gemini 前端/用户视角分析
+codeagent-wrapper --backend gemini - $PROJECT_DIR <<'EOF'
+ROLE_FILE: ~/.claude/prompts/ccg/gemini/analyzer.md
+
+<TASK>
+深度分析: {{问题或场景}}
+Context: {{从 ace-tool 获取的相关代码}}
+</TASK>
+
+OUTPUT: Structured analysis report with clear reasoning.
+EOF
+```
+
 - **Codex** + `analyzer` 角色 → 后端/系统视角
 - **Gemini** + `analyzer` 角色 → 前端/用户视角
-
-输出: `Structured analysis report with clear reasoning`
 
 ### Phase 3: UltraThink 综合
 1. 收集双模型分析报告（`TaskOutput`）

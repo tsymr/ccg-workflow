@@ -31,11 +31,53 @@ description: 三模型代码生成（Codex + Gemini + Claude 并行原型，集�
 
 **同时调用三个模型**（`run_in_background: true`）：
 
+**调用方式**: 使用 `Bash` 工具调用 `codeagent-wrapper`
+
+```bash
+# Codex 后端架构原型
+codeagent-wrapper --backend codex - $PROJECT_DIR <<'EOF'
+ROLE_FILE: ~/.claude/prompts/ccg/codex/architect.md
+
+<TASK>
+生成原型: {{功能需求}}
+Context: {{从 ace-tool 获取的相关代码}}
+</TASK>
+
+OUTPUT: Unified Diff Patch ONLY. Strictly prohibit any actual modifications.
+EOF
+```
+
+```bash
+# Gemini 前端 UI 原型
+codeagent-wrapper --backend gemini - $PROJECT_DIR <<'EOF'
+ROLE_FILE: ~/.claude/prompts/ccg/gemini/frontend.md
+
+<TASK>
+生成原型: {{功能需求}}
+Context: {{从 ace-tool 获取的相关代码}}
+</TASK>
+
+OUTPUT: Unified Diff Patch ONLY. Strictly prohibit any actual modifications.
+EOF
+```
+
+```bash
+# Claude 全栈整合原型
+codeagent-wrapper --backend claude - $PROJECT_DIR <<'EOF'
+ROLE_FILE: ~/.claude/prompts/ccg/claude/architect.md
+
+<TASK>
+生成原型: {{功能需求}}
+Context: {{从 ace-tool 获取的相关代码}}
+</TASK>
+
+OUTPUT: Unified Diff Patch ONLY. Strictly prohibit any actual modifications.
+EOF
+```
+
 1. **Codex** + `architect` 角色 → 后端架构视角
 2. **Gemini** + `frontend` 角色 → 前端 UI 视角
 3. **Claude** + `architect` 角色 → 全栈整合视角
-
-输出: `Unified Diff Patch ONLY`
 
 **三模型差异化价值**：
 | 模型 | 专注点 | 独特贡献 |
@@ -75,10 +117,54 @@ API Contract:
 ### Phase 5: 三模型审查
 
 **并行启动审查**（`run_in_background: true`）：
+
+**调用方式**: 使用 `Bash` 工具调用 `codeagent-wrapper`
+
+```bash
+# Codex 安全性审查
+codeagent-wrapper --backend codex - $PROJECT_DIR <<'EOF'
+ROLE_FILE: ~/.claude/prompts/ccg/codex/reviewer.md
+
+<TASK>
+审查代码: {{实施的代码变更}}
+关注点: 安全性、性能、错误处理
+</TASK>
+
+OUTPUT: Review comments with specific line references.
+EOF
+```
+
+```bash
+# Gemini 设计审查
+codeagent-wrapper --backend gemini - $PROJECT_DIR <<'EOF'
+ROLE_FILE: ~/.claude/prompts/ccg/gemini/reviewer.md
+
+<TASK>
+审查代码: {{实施的代码变更}}
+关注点: 可访问性、响应式设计、设计一致性
+</TASK>
+
+OUTPUT: Review comments with specific line references.
+EOF
+```
+
+```bash
+# Claude 集成审查
+codeagent-wrapper --backend claude - $PROJECT_DIR <<'EOF'
+ROLE_FILE: ~/.claude/prompts/ccg/claude/reviewer.md
+
+<TASK>
+审查代码: {{实施的代码变更}}
+关注点: 集成正确性、契约一致性
+</TASK>
+
+OUTPUT: Review comments with specific line references.
+EOF
+```
+
 - **Codex** + `reviewer` 角色 → 安全性、性能、错误处理
 - **Gemini** + `reviewer` 角色 → 可访问性、响应式、设计一致性
 - **Claude** + `reviewer` 角色 → 集成正确性、契约一致性
-- 输出: `Review comments with specific line references`
 
 ### Phase 6: 修正与交付
 

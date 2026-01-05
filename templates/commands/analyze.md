@@ -46,9 +46,37 @@ You are the **Analysis Coordinator** orchestrating multi-model research. You dir
 
 **并行调用所有配置的分析模型**（使用 `run_in_background: true` 非阻塞执行）：
 
-遍历合并后的模型列表（去重），为每个模型发送调用：
-- 使用 `analyzer` 角色
-- 输出: `Detailed analysis with recommendations`
+**调用方式**: 使用 `Bash` 工具调用 `codeagent-wrapper`
+
+```bash
+# Codex 技术分析
+codeagent-wrapper --backend codex - $PROJECT_DIR <<'EOF'
+ROLE_FILE: ~/.claude/prompts/ccg/codex/analyzer.md
+
+<TASK>
+分析任务: {{分析问题或任务}}
+Context: {{从 ace-tool 获取的相关代码}}
+</TASK>
+
+OUTPUT: Detailed analysis with recommendations.
+EOF
+```
+
+```bash
+# Gemini 技术分析
+codeagent-wrapper --backend gemini - $PROJECT_DIR <<'EOF'
+ROLE_FILE: ~/.claude/prompts/ccg/gemini/analyzer.md
+
+<TASK>
+分析任务: {{分析问题或任务}}
+Context: {{从 ace-tool 获取的相关代码}}
+</TASK>
+
+OUTPUT: Detailed analysis with recommendations.
+EOF
+```
+
+遍历合并后的模型列表（去重），为每个模型动态生成上述调用，使用 `analyzer` 角色。
 
 ### Step 3: 交叉验证
 使用 `TaskOutput` 获取所有任务的结果，然后：

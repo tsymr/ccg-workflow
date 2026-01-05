@@ -23,10 +23,39 @@ description: 质量门控修复（双模型交叉验证，90%+ 通过）
 
 ### Phase 2: 双模型诊断
 **并行调用**（`run_in_background: true`）:
+
+**调用方式**: 使用 `Bash` 工具调用 `codeagent-wrapper`
+
+```bash
+# Codex 后端诊断修复
+codeagent-wrapper --backend codex - $PROJECT_DIR <<'EOF'
+ROLE_FILE: ~/.claude/prompts/ccg/codex/architect.md
+
+<TASK>
+Bug 修复: {{Bug 描述}}
+Context: {{从 ace-tool 获取的相关代码}}
+</TASK>
+
+OUTPUT: Unified Diff Patch for the fix.
+EOF
+```
+
+```bash
+# Gemini 前端诊断修复
+codeagent-wrapper --backend gemini - $PROJECT_DIR <<'EOF'
+ROLE_FILE: ~/.claude/prompts/ccg/gemini/frontend.md
+
+<TASK>
+Bug 修复: {{Bug 描述}}
+Context: {{从 ace-tool 获取的相关代码}}
+</TASK>
+
+OUTPUT: Unified Diff Patch for the fix.
+EOF
+```
+
 - **Codex** + `architect` 角色 → 后端分析
 - **Gemini** + `frontend` 角色 → 前端分析
-
-输出: `Unified Diff Patch for the fix`
 
 ### Phase 3: 修复整合
 1. 收集双模型的修复方案（`TaskOutput`）
@@ -38,6 +67,36 @@ description: 质量门控修复（双模型交叉验证，90%+ 通过）
 
 ### Phase 5: 质量门控验证
 **并行调用** Codex + Gemini + `reviewer` 角色验证
+
+**调用方式**: 使用 `Bash` 工具调用 `codeagent-wrapper`
+
+```bash
+# Codex 审查修复
+codeagent-wrapper --backend codex - $PROJECT_DIR <<'EOF'
+ROLE_FILE: ~/.claude/prompts/ccg/codex/reviewer.md
+
+<TASK>
+审查修复: {{实施的修复代码}}
+评分标准: 正确性、安全性、性能、可维护性
+</TASK>
+
+OUTPUT: Review with score (0-100%) and specific feedback.
+EOF
+```
+
+```bash
+# Gemini 审查修复
+codeagent-wrapper --backend gemini - $PROJECT_DIR <<'EOF'
+ROLE_FILE: ~/.claude/prompts/ccg/gemini/reviewer.md
+
+<TASK>
+审查修复: {{实施的修复代码}}
+评分标准: 正确性、用户体验、可访问性、设计一致性
+</TASK>
+
+OUTPUT: Review with score (0-100%) and specific feedback.
+EOF
+```
 
 ### Phase 6: 质量门控决策
 ```

@@ -25,10 +25,39 @@ description: 多模型性能优化（Codex 后端优化 + Gemini 前端优化）
 
 ### Phase 2: 并行性能分析
 **同时调用**（`run_in_background: true`）:
+
+**调用方式**: 使用 `Bash` 工具调用 `codeagent-wrapper`
+
+```bash
+# Codex 后端性能分析
+codeagent-wrapper --backend codex - $PROJECT_DIR <<'EOF'
+ROLE_FILE: ~/.claude/prompts/ccg/codex/optimizer.md
+
+<TASK>
+性能优化: {{优化目标}}
+Context: {{从 ace-tool 获取的相关代码和性能指标}}
+</TASK>
+
+OUTPUT: Analysis report + Unified Diff Patch for optimizations.
+EOF
+```
+
+```bash
+# Gemini 前端性能分析
+codeagent-wrapper --backend gemini - $PROJECT_DIR <<'EOF'
+ROLE_FILE: ~/.claude/prompts/ccg/gemini/optimizer.md
+
+<TASK>
+性能优化: {{优化目标}}
+Context: {{从 ace-tool 获取的相关代码和性能指标}}
+</TASK>
+
+OUTPUT: Analysis report + Unified Diff Patch for optimizations.
+EOF
+```
+
 - **Codex** + `optimizer` 角色 → 后端性能分析
 - **Gemini** + `optimizer` 角色 → 前端性能分析
-
-输出: `Analysis report + Unified Diff Patch for optimizations`
 
 ### Phase 3: 优化整合
 1. 收集双模型分析（`TaskOutput`）

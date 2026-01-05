@@ -30,7 +30,37 @@ description: 多模型测试生成（Codex 后端测试 + Gemini 前端测试）
 | 前端 | Gemini | `tester` |
 | 全栈 | 并行执行 | 两者 |
 
-输出: `Unified Diff Patch for test files ONLY`
+**调用方式**: 使用 `Bash` 工具调用 `codeagent-wrapper`
+
+```bash
+# Codex 后端测试生成
+codeagent-wrapper --backend codex - $PROJECT_DIR <<'EOF'
+ROLE_FILE: ~/.claude/prompts/ccg/codex/tester.md
+
+<TASK>
+生成测试: {{需要测试的代码}}
+Context: {{现有测试和测试框架配置}}
+</TASK>
+
+OUTPUT: Unified Diff Patch for test files ONLY.
+EOF
+```
+
+```bash
+# Gemini 前端测试生成
+codeagent-wrapper --backend gemini - $PROJECT_DIR <<'EOF'
+ROLE_FILE: ~/.claude/prompts/ccg/gemini/tester.md
+
+<TASK>
+生成测试: {{需要测试的代码}}
+Context: {{现有测试和测试框架配置}}
+</TASK>
+
+OUTPUT: Unified Diff Patch for test files ONLY.
+EOF
+```
+
+根据代码类型选择调用对应模型，全栈代码则并行调用（`run_in_background: true`）。
 
 ### Phase 3: 测试整合
 1. 收集模型输出（`TaskOutput`）
