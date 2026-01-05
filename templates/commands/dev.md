@@ -87,7 +87,7 @@ strategy = "parallel"
 
 **根据配置并行调用模型进行分析**（使用 `run_in_background: true` 非阻塞执行）：
 
-**调用方式**: 使用 `Bash` 工具调用 `codeagent-wrapper`（不要使用 `/collaborating-with-codex` 或 `/collaborating-with-gemini`）
+**调用方式**: 使用 `Bash` 工具调用 `codeagent-wrapper`
 
 ```bash
 # 后端模型分析示例
