@@ -325,7 +325,7 @@ const en = {
   },
 }
 
-export async function initI18n(lang: SupportedLang = 'en'): Promise<void> {
+export async function initI18n(lang: SupportedLang = 'zh-CN'): Promise<void> {
   if (!i18n.isInitialized) {
     await i18n.init({
       lng: lang,

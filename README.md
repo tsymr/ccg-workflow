@@ -4,9 +4,7 @@
 
 **Claude Code 主导 + Codex CLI + Gemini CLI + Claude CLI 协作工作流系统**
 
-[![npm version](https://img.shields.io/npm/v/ccg-workflow.svg)](https://www.npmjs.com/package/ccg-workflow)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![Claude Code](https://img.shields.io/badge/Claude%20Code-Compatible-green.svg)](https://claude.ai/code)
+[![npm version](https://img.shields.io/npm/v/ccg-workflow.svg)](https://www.npmjs.com/package/ccg-workflow) [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT) [![Claude Code](https://img.shields.io/badge/Claude%20Code-Compatible-green.svg)](https://claude.ai/code) [![Codex CLI](https://img.shields.io/badge/Codex%20CLI-Supported-orange.svg)](https://github.com/openai/openai-python) [![Gemini CLI](https://img.shields.io/badge/Gemini%20CLI-Supported-purple.svg)](https://ai.google.dev/)
 
 > **最新版本 v1.3.3**：修复 Windows PATH 配置安全问题
 
