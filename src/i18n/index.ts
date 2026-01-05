@@ -68,6 +68,9 @@ const zhCN = {
     installCancelled: '安装已取消',
     installedCommands: '已安装命令:',
     installedPrompts: '已安装角色提示词:',
+    installedBinary: '已安装二进制文件:',
+    pathWarning: '需要将 codeagent-wrapper 添加到 PATH 才能使用',
+    addToShellConfig: '请添加以下命令到 {{file}} 并重启终端',
     configSavedTo: '配置已保存至:',
     validation: {
       selectAtLeastOne: '请至少选择一个模型',
@@ -213,6 +216,9 @@ const en = {
     installCancelled: 'Installation cancelled',
     installedCommands: 'Installed Commands:',
     installedPrompts: 'Installed Role Prompts:',
+    installedBinary: 'Installed Binary:',
+    pathWarning: 'codeagent-wrapper needs to be added to PATH',
+    addToShellConfig: 'Add the following command to {{file}} and restart your terminal',
     configSavedTo: 'Config saved to:',
     validation: {
       selectAtLeastOne: 'Please select at least one model',

@@ -95,8 +95,6 @@
 # 交互式配置安装
 npx ccg-workflow
 
-# 或简写
-npx ccg
 ```
 
 ### 方式二：全局安装

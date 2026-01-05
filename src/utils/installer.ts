@@ -369,6 +369,54 @@ ${workflow.description}
     }
   }
 
+  // Install codeagent-wrapper binary
+  try {
+    const binDir = join(installDir, 'bin')
+    await fs.ensureDir(binDir)
+
+    // Detect platform and select appropriate binary
+    const platform = process.platform
+    const arch = process.arch
+    let binaryName: string
+
+    if (platform === 'darwin') {
+      binaryName = arch === 'arm64' ? 'codeagent-wrapper-darwin-arm64' : 'codeagent-wrapper-darwin-amd64'
+    }
+    else if (platform === 'linux') {
+      binaryName = 'codeagent-wrapper-linux-amd64'
+    }
+    else if (platform === 'win32') {
+      binaryName = 'codeagent-wrapper-windows-amd64.exe'
+    }
+    else {
+      result.errors.push(`Unsupported platform: ${platform}`)
+      result.success = false
+      result.configPath = commandsDir
+      return result
+    }
+
+    const srcBinary = join(PACKAGE_ROOT, 'bin', binaryName)
+    const destBinary = join(binDir, platform === 'win32' ? 'codeagent-wrapper.exe' : 'codeagent-wrapper')
+
+    if (await fs.pathExists(srcBinary)) {
+      await fs.copy(srcBinary, destBinary)
+      // Set executable permission on Unix-like systems
+      if (platform !== 'win32') {
+        await fs.chmod(destBinary, 0o755)
+      }
+      result.binPath = binDir
+      result.binInstalled = true
+    }
+    else {
+      result.errors.push(`Binary not found: ${binaryName}`)
+      result.success = false
+    }
+  }
+  catch (error) {
+    result.errors.push(`Failed to install codeagent-wrapper: ${error}`)
+    result.success = false
+  }
+
   result.configPath = commandsDir
   return result
 }

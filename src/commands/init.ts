@@ -259,6 +259,18 @@ export async function init(options: InitOptions = {}): Promise<void> {
       })
     }
 
+    // Show binary installation result
+    if (result.binInstalled && result.binPath) {
+      console.log()
+      console.log(ansis.cyan(`  ${i18n.t('init:installedBinary')}`))
+      console.log(`    ${ansis.green('✓')} codeagent-wrapper ${ansis.gray(`→ ${result.binPath}`)}`)
+      console.log()
+      console.log(ansis.yellow(`  ⚠ ${i18n.t('init:pathWarning')}`))
+      const shellRc = process.env.SHELL?.includes('zsh') ? '~/.zshrc' : '~/.bashrc'
+      console.log(ansis.gray(`     export PATH="${result.binPath}:$PATH"`))
+      console.log(ansis.gray(`     ${i18n.t('init:addToShellConfig', { file: shellRc })}`))
+    }
+
     console.log()
     console.log(ansis.gray(`  ${i18n.t('init:configSavedTo')} ${getCcgDir()}/config.toml`))
     console.log()

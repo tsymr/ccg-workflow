@@ -192,6 +192,48 @@ SESSION_ID: 019a7247-ac9d-71f3-89e2-a823dbd8fd14
 
 ---
 
+## Slash Command 格式要求
+
+⚠️ **重要**：子目录中的 slash commands 必须包含 YAML frontmatter，否则 Claude Code CLI 无法正确识别。
+
+### 必需格式
+
+每个 `.md` 命令文件必须以 YAML frontmatter 开头：
+
+```markdown
+---
+description: 命令的简短描述
+---
+
+## Usage
+...
+```
+
+### 完整示例
+
+```markdown
+---
+description: 多模型技术分析（根据配置并行），交叉验证后综合见解
+---
+
+## Usage
+`/analyze <QUESTION_OR_TASK>`
+...
+```
+
+### 扩展格式（权限控制）
+
+```markdown
+---
+description: 命令描述
+allowed-tools: Read(**), Exec(git status, git diff), Write()
+---
+```
+
+📖 **详细说明**：查看 [SLASH_COMMAND_FORMAT.md](./SLASH_COMMAND_FORMAT.md) 了解完整的格式要求、最佳实践和常见问题。
+
+---
+
 ## Installation
 
 ```bash
