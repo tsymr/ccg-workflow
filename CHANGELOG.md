@@ -7,6 +7,121 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.2] - 2026-01-05
+
+### 优化
+
+- 删除重复的根目录提示词文件（`prompts/`）
+- 只保留 `templates/prompts/` 作为安装模板源
+- 从 `package.json` 的 `files` 字段移除 `"prompts"`
+- npm 包减少 18 个文件（75 → 57 files）
+
+---
+
+## [1.2.1] - 2026-01-05
+
+### 修复
+
+- 确保 `~/.ccg/config.toml` 配置文件在安装失败时也能创建
+- 将 `writeCcgConfig()` 调整到 `installWorkflows()` 之前执行
+- 修复首次 `init` 时配置文件可能不存在的问题
+
+---
+
+## [1.2.0] - 2026-01-05 ⭐
+
+### 重大更新：ROLE_FILE 动态注入
+
+#### 核心特性
+
+- **真正的动态注入**：`codeagent-wrapper` 自动识别 `ROLE_FILE:` 指令
+- **0 token 消耗**：Claude 无需先用 Read 工具读取提示词文件
+- **自动化管理**：一行 `ROLE_FILE:` 搞定，无需手动粘贴
+
+#### 技术实现
+
+在 `codeagent-wrapper/utils.go` 中新增 `injectRoleFile()` 函数：
+- 使用正则 `^ROLE_FILE:\s*(.+)` 匹配指令
+- 自动展开 `~/` 为用户 HOME 目录
+- 读取文件内容并原地替换 `ROLE_FILE:` 行
+- 完整日志记录注入过程（文件路径、大小）
+
+在 `codeagent-wrapper/main.go` 中集成动态注入：
+- Explicit stdin 模式支持
+- Piped task 模式支持
+- Parallel 模式支持（所有任务）
+
+#### 更新内容
+
+- 重新编译所有平台二进制文件（darwin-amd64, darwin-arm64, linux-amd64, windows-amd64）
+- 更新所有命令模板，使用 `ROLE_FILE:` 替代手动读取
+
+#### 使用示例
+
+```bash
+# 旧方式（已弃用）
+⏺ Read(~/.claude/prompts/ccg/codex/reviewer.md)
+codeagent-wrapper --backend codex - <<'EOF'
+# 手动粘贴提示词内容...
+<TASK>...</TASK>
+EOF
+
+# 新方式（v1.2.0）
+codeagent-wrapper --backend codex - <<'EOF'
+ROLE_FILE: ~/.claude/prompts/ccg/codex/reviewer.md
+
+<TASK>审查代码...</TASK>
+EOF
+```
+
+---
+
+## [1.1.3] - 2026-01-05
+
+### 新增功能
+
+- **PATH 自动配置**：安装后自动配置 `codeagent-wrapper` 可执行路径
+  - **Mac/Linux**：交互式提示，自动添加到 `.zshrc` 或 `.bashrc`
+  - **Windows**：提供详细手动配置指南 + PowerShell 一键命令
+  - 智能检测重复配置，避免多次添加
+
+### 用户体验
+
+- 安装完成后询问是否自动配置 PATH（Mac/Linux）
+- 自动检测 shell 类型（zsh/bash）
+- 检查是否已配置，避免重复添加
+- Windows 用户获得分步操作指南
+
+### 国际化
+
+- 新增 11 个 i18n 翻译键（中文/英文）
+- 优化提示信息的可读性
+
+---
+
+## [1.1.2] - 2026-01-05
+
+### 新增功能
+
+- **codeagent-wrapper 自动安装**：安装时自动复制二进制文件到 `~/.claude/bin/`
+  - 跨平台支持：darwin-amd64, darwin-arm64, linux-amd64, windows-amd64
+  - 自动设置可执行权限（Unix 系统）
+  - 显示安装路径和配置说明
+
+### 技术实现
+
+- 修改 `src/types/index.ts` 添加 `binPath` 和 `binInstalled` 字段
+- 修改 `src/utils/installer.ts` 实现平台检测和二进制安装逻辑
+- 修改 `src/commands/init.ts` 显示 PATH 配置说明
+
+### 用户体验
+
+- 安装后显示 PATH 配置指令
+- 提供友好的配置提示
+- 新增 i18n 翻译
+
+---
+
 ## [1.1.1] - 2026-01-05
 
 ### 文档更新
