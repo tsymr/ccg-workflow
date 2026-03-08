@@ -7,7 +7,7 @@ import { homedir } from 'node:os'
 import { join } from 'pathe'
 import { i18n, initI18n } from '../i18n'
 import { createDefaultConfig, ensureCcgDir, getCcgDir, readCcgConfig, writeCcgConfig } from '../utils/config'
-import { getAllCommandIds, installAceTool, installAceToolRs, installContextWeaver, installWorkflows } from '../utils/installer'
+import { getAllCommandIds, installAceTool, installAceToolRs, installContextWeaver, installMcpServer, installWorkflows } from '../utils/installer'
 import { migrateToV1_4_0, needsMigration } from '../utils/migration'
 
 /**
@@ -57,6 +57,93 @@ async function installHook(settingsPath: string): Promise<void> {
     })
     await fs.writeJSON(settingsPath, settings, { spaces: 2 })
   }
+}
+
+/**
+ * Append grok-search global prompt to ~/.claude/CLAUDE.md (never replaces existing content)
+ */
+async function appendGrokSearchPrompt(): Promise<void> {
+  const claudeMdPath = join(homedir(), '.claude', 'CLAUDE.md')
+
+  let content = ''
+  if (await fs.pathExists(claudeMdPath)) {
+    content = await fs.readFile(claudeMdPath, 'utf-8')
+  }
+
+  // Already appended — skip
+  if (content.includes('CCG-GROK-SEARCH-PROMPT')) {
+    return
+  }
+
+  const prompt = `
+
+<!-- CCG-GROK-SEARCH-PROMPT-START -->
+## 0. Language and Format Standards
+
+- **Interaction Language**: Tools and models must interact exclusively in **English**; user outputs must be in **Chinese**.
+- MUST ULRTA Thinking in ENGLISH!
+- **Formatting Requirements**: Use standard Markdown formatting. Code blocks and specific text results should be marked with backticks. Skilled in applying four or more \`\`\`\`markdown wrappers.
+
+## 1. Search and Evidence Standards
+Typically, the results of web searches only constitute third-party suggestions and are not directly credible; they must be cross-verified with sources to provide users with absolutely authoritative and correct answers.
+
+### Search Trigger Conditions
+Strictly distinguish between internal and external knowledge. Avoid speculation based on general internal knowledge. When uncertain, explicitly inform the user.
+
+For example, when using the \`fastapi\` library to encapsulate an API endpoint, despite possessing common-sense knowledge internally, you must still rely on the latest search results or official documentation for reliable implementation.
+
+### Search Execution Guidelines
+
+- Use the \`mcp__grok-search\` tool for web searches
+- Execute independent search requests in parallel; sequential execution applies only when dependencies exist
+- Evaluate search results for quality: analyze relevance, source credibility, cross-source consistency, and completeness. Conduct supplementary searches if gaps exist
+
+### Source Quality Standards
+
+- Key factual claims must be supported by >=2 independent sources. If relying on a single source, explicitly state this limitation
+- Conflicting sources: Present evidence from both sides, assess credibility and timeliness, identify the stronger evidence, or declare unresolved discrepancies
+- Empirical conclusions must include confidence levels (High/Medium/Low)
+- Citation format: [Author/Organization, Year/Date, Section/URL]. Fabricated references are strictly prohibited
+
+## 2. Reasoning and Expression Principles
+
+- Be concise, direct, and information-dense: Use lists for discrete items; paragraphs for arguments
+- Challenge flawed premises: When user logic contains errors, pinpoint specific issues with evidence
+- All conclusions must specify: Applicable conditions, scope boundaries, and known limitations
+- Avoid greetings, pleasantries, filler adjectives, and emotional expressions
+- When uncertain: State unknowns and reasons before presenting confirmed facts
+<!-- CCG-GROK-SEARCH-PROMPT-END -->
+`
+
+  await fs.ensureDir(join(homedir(), '.claude'))
+  await fs.appendFile(claudeMdPath, prompt, 'utf-8')
+}
+
+/**
+ * Install grok-search MCP server
+ */
+async function installGrokSearchMcp(keys: {
+  tavilyKey?: string
+  firecrawlKey?: string
+  grokApiUrl?: string
+  grokApiKey?: string
+}): Promise<{ success: boolean, message: string }> {
+  const env: Record<string, string> = {}
+  if (keys.tavilyKey)
+    env.TAVILY_API_KEY = keys.tavilyKey
+  if (keys.firecrawlKey)
+    env.FIRECRAWL_API_KEY = keys.firecrawlKey
+  if (keys.grokApiUrl)
+    env.GROK_API_URL = keys.grokApiUrl
+  if (keys.grokApiKey)
+    env.GROK_API_KEY = keys.grokApiKey
+
+  return installMcpServer(
+    'grok-search',
+    'uvx',
+    ['--from', 'git+https://github.com/GuDaStudio/GrokSearch@grok-with-tavily', 'grok-search'],
+    env,
+  )
 }
 
 export async function init(options: InitOptions = {}): Promise<void> {
@@ -131,23 +218,23 @@ export async function init(options: InitOptions = {}): Promise<void> {
       message: i18n.t('init:mcp.selectProvider'),
       choices: [
         {
-          name: `contextweaver ${ansis.green(`(${i18n.t('common:info')})`)} ${ansis.gray(`- ${i18n.t('init:mcp.contextweaver')}`)}`,
-          value: 'contextweaver',
-        },
-        {
-          name: `ace-tool ${ansis.red(`(${i18n.t('init:mcp.aceToolPaid')})`)} ${ansis.gray('(Node.js) - Augment')}`,
+          name: `ace-tool ${ansis.green(`(${i18n.t('common:info')})`)} ${ansis.gray('- search_context (enhance_prompt N/A)')}`,
           value: 'ace-tool',
         },
         {
-          name: `ace-tool-rs ${ansis.red(`(${i18n.t('init:mcp.aceToolRsPaid')})`)} ${ansis.gray('(Rust) - ' + i18n.t('init:mcp.aceToolRsPaid'))}`,
+          name: `ace-tool-rs ${ansis.green(`(${i18n.t('common:info')})`)} ${ansis.gray('(Rust) - search_context')}`,
           value: 'ace-tool-rs',
+        },
+        {
+          name: `contextweaver ${ansis.gray(`- ${i18n.t('init:mcp.contextweaver')}`)}`,
+          value: 'contextweaver',
         },
         {
           name: `${i18n.t('init:mcp.skipLater')} ${ansis.gray(`- ${i18n.t('init:mcp.configManually')}`)}`,
           value: 'skip',
         },
       ],
-      default: 'contextweaver',
+      default: 'ace-tool',
     }])
 
     mcpProvider = selectedMcp
@@ -176,7 +263,7 @@ export async function init(options: InitOptions = {}): Promise<void> {
         console.log(`     ${ansis.gray('•')} ${ansis.cyan(i18n.t('init:mcp.officialService'))}: ${ansis.underline('https://augmentcode.com/')}`)
         console.log(`       ${ansis.gray(i18n.t('init:mcp.registerForToken'))}`)
         console.log()
-        console.log(`     ${ansis.gray('•')} ${ansis.cyan(i18n.t('init:mcp.proxyService'))} ${ansis.yellow(`(${i18n.t('init:mcp.noSignup')})`)}: ${ansis.underline('https://linux.do/t/topic/1291730')}`)
+        console.log(`     ${ansis.gray('•')} ${ansis.cyan(i18n.t('init:mcp.proxyService'))} ${ansis.yellow(`(${i18n.t('init:mcp.noSignup')})`)}: ${ansis.underline('https://acemcp.heroman.wtf/')}`)
         console.log(`       ${ansis.gray(i18n.t('init:mcp.communityProxy'))}`)
         console.log()
 
@@ -251,6 +338,52 @@ export async function init(options: InitOptions = {}): Promise<void> {
       console.log(ansis.yellow(`  ℹ️  ${i18n.t('init:mcp.mcpSkipped')}`))
       console.log(ansis.gray(`     • ${i18n.t('init:mcp.configManually')}`))
       console.log()
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════
+  // Grok Search MCP (web search)
+  // ═══════════════════════════════════════════════════════
+  let wantGrokSearch = false
+  let tavilyKey = ''
+  let firecrawlKey = ''
+  let grokApiUrl = ''
+  let grokApiKey = ''
+
+  if (!options.skipPrompt && !options.skipMcp) {
+    console.log()
+    console.log(ansis.cyan.bold(`  🔍 ${i18n.t('init:grok.title')}`))
+    console.log()
+
+    const { wantGrok } = await inquirer.prompt([{
+      type: 'confirm',
+      name: 'wantGrok',
+      message: i18n.t('init:grok.installPrompt'),
+      default: false,
+    }])
+
+    if (wantGrok) {
+      wantGrokSearch = true
+
+      console.log()
+      console.log()
+      console.log(ansis.cyan(`     📖 ${i18n.t('init:grok.getKeys')}`))
+      console.log(`        Tavily: ${ansis.underline('https://www.tavily.com/')} ${ansis.gray(`(${i18n.t('init:grok.tavilyHint')})`)}`)
+      console.log(`        Firecrawl: ${ansis.underline('https://www.firecrawl.dev/')} ${ansis.gray(`(${i18n.t('init:grok.firecrawlHint')})`)}`)
+      console.log(`        Grok API: ${ansis.gray(i18n.t('init:grok.grokHint'))}`)
+      console.log()
+
+      const grokAnswers = await inquirer.prompt([
+        { type: 'input', name: 'grokApiUrl', message: `GROK_API_URL ${ansis.gray(`(${i18n.t('init:grok.optional')})`)}`, default: '' },
+        { type: 'password', name: 'grokApiKey', message: `GROK_API_KEY ${ansis.gray(`(${i18n.t('init:grok.optional')})`)}`, mask: '*' },
+        { type: 'password', name: 'tavilyKey', message: `TAVILY_API_KEY ${ansis.gray(`(${i18n.t('init:grok.optional')})`)}`, mask: '*' },
+        { type: 'password', name: 'firecrawlKey', message: `FIRECRAWL_API_KEY ${ansis.gray(`(${i18n.t('init:grok.optional')})`)}`, mask: '*' },
+      ])
+
+      tavilyKey = grokAnswers.tavilyKey?.trim() || ''
+      firecrawlKey = grokAnswers.firecrawlKey?.trim() || ''
+      grokApiUrl = grokAnswers.grokApiUrl?.trim() || ''
+      grokApiKey = grokAnswers.grokApiKey?.trim() || ''
     }
   }
 
@@ -343,6 +476,9 @@ export async function init(options: InitOptions = {}): Promise<void> {
   console.log(`  ${ansis.cyan(i18n.t('init:summary.commandCount'))}  ${ansis.yellow(selectedWorkflows.length.toString())}`)
   console.log(`  ${ansis.cyan(i18n.t('init:summary.mcpTool'))}  ${(mcpProvider === 'ace-tool' || mcpProvider === 'ace-tool-rs') ? (aceToolToken ? ansis.green(mcpProvider) : ansis.yellow(`${mcpProvider} (${i18n.t('init:summary.pendingConfig')})`)) : mcpProvider === 'contextweaver' ? (contextWeaverApiKey ? ansis.green('contextweaver') : ansis.yellow(`contextweaver (${i18n.t('init:summary.pendingConfig')})`)) : ansis.gray(i18n.t('init:summary.skipped'))}`)
   console.log(`  ${ansis.cyan(i18n.t('init:summary.webUI'))}    ${liteMode ? ansis.gray(i18n.t('init:summary.disabled')) : ansis.green(i18n.t('init:summary.enabled'))}`)
+  if (wantGrokSearch) {
+    console.log(`  ${ansis.cyan('grok-search')}    ${tavilyKey ? ansis.green('✓') : ansis.yellow(`(${i18n.t('init:summary.pendingConfig')})`)}`)
+  }
   console.log(ansis.yellow('━'.repeat(50)))
   console.log()
 
@@ -521,6 +657,30 @@ export async function init(options: InitOptions = {}): Promise<void> {
     console.log()
     console.log(`    ${ansis.green('✓')} ${i18n.t('init:hooks.installed')}`)
 
+    // Install grok-search MCP if requested
+    if (wantGrokSearch && (tavilyKey || firecrawlKey || grokApiUrl || grokApiKey)) {
+      spinner.text = i18n.t('init:grok.installing')
+      const grokResult = await installGrokSearchMcp({
+        tavilyKey,
+        firecrawlKey,
+        grokApiUrl: grokApiUrl || undefined,
+        grokApiKey: grokApiKey || undefined,
+      })
+
+      if (grokResult.success) {
+        // Append global prompt to ~/.claude/CLAUDE.md
+        await appendGrokSearchPrompt()
+        console.log()
+        console.log(`    ${ansis.green('✓')} grok-search MCP ${ansis.gray('→ ~/.claude.json')}`)
+        console.log(`    ${ansis.green('✓')} ${i18n.t('init:grok.promptAppended')} ${ansis.gray('→ ~/.claude/CLAUDE.md')}`)
+      }
+      else {
+        console.log()
+        console.log(`    ${ansis.yellow('⚠')} grok-search MCP ${i18n.t('init:grok.installFailed')}`)
+        console.log(ansis.gray(`      ${grokResult.message}`))
+      }
+    }
+
     // Check jq availability and warn if missing
     const hasJq = await checkJqAvailable()
     if (!hasJq) {
@@ -643,7 +803,7 @@ export async function init(options: InitOptions = {}): Promise<void> {
       console.log(`     ${ansis.green('1.')} ${ansis.cyan('ace-tool / ace-tool-rs')}: ${ansis.underline('https://augmentcode.com/')}`)
       console.log(`        ${ansis.gray(i18n.t('init:mcp.promptEnhancement'))}`)
       console.log()
-      console.log(`     ${ansis.green('2.')} ${ansis.cyan('ace-tool ' + i18n.t('init:mcp.proxyService'))} ${ansis.yellow(`(${i18n.t('init:mcp.noSignup')})`)}: ${ansis.underline('https://linux.do/t/topic/1291730')}`)
+      console.log(`     ${ansis.green('2.')} ${ansis.cyan('ace-tool ' + i18n.t('init:mcp.proxyService'))} ${ansis.yellow(`(${i18n.t('init:mcp.noSignup')})`)}: ${ansis.underline('https://acemcp.heroman.wtf/')}`)
       console.log(`        ${ansis.gray(i18n.t('init:mcp.communityProxy'))}`)
       console.log()
       console.log(`     ${ansis.green('3.')} ${ansis.cyan('ContextWeaver')} ${ansis.yellow(`(${i18n.t('init:mcp.freeQuota')})`)}: ${ansis.underline('https://siliconflow.cn/')}`)

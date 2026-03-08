@@ -225,7 +225,7 @@ npm uninstall -g ccg-workflow  # npm global users need this extra step
 
 ### 1. How to auto-authorize codeagent-wrapper without manual approval?
 
-CCG automatically installs the Hook during setup (v1.7.70+). If you installed an older version, add this to `~/.claude/settings.json`:
+CCG automatically installs the Hook during setup (v1.7.71+). If you installed an older version, add this to `~/.claude/settings.json`:
 
 ```json
 {
@@ -288,4 +288,4 @@ MIT
 
 ---
 
-v1.7.70 | [Issues](https://github.com/fengshao1227/ccg-workflow/issues)
+v1.7.71 | [Issues](https://github.com/fengshao1227/ccg-workflow/issues)

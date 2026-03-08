@@ -227,7 +227,7 @@ npm uninstall -g ccg-workflow  # npm 全局用户需额外执行
 
 ### 1. 如何让 codeagent-wrapper 无需手动同意即可运行？
 
-v1.7.70+ 安装时会自动写入 Hook。如果你是旧版本用户，可手动在 `~/.claude/settings.json` 中添加：
+v1.7.71+ 安装时会自动写入 Hook。如果你是旧版本用户，可手动在 `~/.claude/settings.json` 中添加：
 
 ```json
 {
@@ -290,4 +290,4 @@ MIT
 
 ---
 
-v1.7.70 | [Issues](https://github.com/fengshao1227/ccg-workflow/issues)
+v1.7.71 | [Issues](https://github.com/fengshao1227/ccg-workflow/issues)

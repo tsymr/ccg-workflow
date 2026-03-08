@@ -2,7 +2,7 @@
 
 > [根目录](../CLAUDE.md) > **skills-v2**
 
-**Last Updated**: 2026-03-09 (v1.7.70)
+**Last Updated**: 2026-03-09 (v1.7.71)
 
 ---
 

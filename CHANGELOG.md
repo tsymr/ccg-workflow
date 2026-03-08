@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.7.71] - 2026-03-09
+
+### ✨ 新功能
+
+- **grok-search 联网搜索 MCP**：初始化和 MCP 菜单新增 grok-search 安装选项，支持 Tavily + Firecrawl + Grok 多信源联网搜索（比 Claude Code 内置联网更好用）
+- **全局搜索提示词自动追加**：安装 grok-search 时自动追加搜索/证据/推理规范到 `~/.claude/CLAUDE.md`，不替换现有内容
+
+### 🔄 变更
+
+- **ace-tool 中转链接更新**：init 和 config-mcp 中的中转推荐统一更新为 https://acemcp.heroman.wtf/
+- **MCP 推荐顺序**：init 中 ace-tool 默认选中为首选
+
+---
+
 ## [1.7.70] - 2026-03-09
 
 ### ✨ 新功能

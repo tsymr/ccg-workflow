@@ -1,6 +1,9 @@
 import ansis from 'ansis'
 import inquirer from 'inquirer'
 import { i18n } from '../i18n'
+import fs from 'fs-extra'
+import { homedir } from 'node:os'
+import { join } from 'pathe'
 import { installAceTool, installAceToolRs, installContextWeaver, installMcpServer, uninstallAceTool, uninstallContextWeaver, uninstallMcpServer } from '../utils/installer'
 
 /**
@@ -16,7 +19,8 @@ export async function configMcp(): Promise<void> {
     name: 'action',
     message: '选择操作',
     choices: [
-      { name: `${ansis.green('➜')} 代码检索 MCP ${ansis.gray('(ContextWeaver / ace-tool)')}`, value: 'code-retrieval' },
+      { name: `${ansis.green('➜')} 代码检索 MCP ${ansis.gray('(ace-tool / ContextWeaver)')}`, value: 'code-retrieval' },
+      { name: `${ansis.green('➜')} 联网搜索 MCP ${ansis.gray('(grok-search，比内置联网更好用)')}`, value: 'grok-search' },
       { name: `${ansis.blue('➜')} 辅助工具 MCP ${ansis.gray('(context7 / Playwright / exa...)')}`, value: 'auxiliary' },
       { name: `${ansis.red('✕')} 卸载 MCP`, value: 'uninstall' },
       new inquirer.Separator(),
@@ -29,6 +33,9 @@ export async function configMcp(): Promise<void> {
 
   if (action === 'code-retrieval') {
     await handleCodeRetrieval()
+  }
+  else if (action === 'grok-search') {
+    await handleGrokSearch()
   }
   else if (action === 'auxiliary') {
     await handleAuxiliary()
@@ -129,6 +136,118 @@ async function handleInstallContextWeaver(): Promise<void> {
   }
 }
 
+// ═══════════════════════════════════════════════════════
+// Grok Search MCP (web search)
+// ═══════════════════════════════════════════════════════
+
+const GROK_SEARCH_PROMPT = `
+
+<!-- CCG-GROK-SEARCH-PROMPT-START -->
+## 0. Language and Format Standards
+
+- **Interaction Language**: Tools and models must interact exclusively in **English**; user outputs must be in **Chinese**.
+- MUST ULRTA Thinking in ENGLISH!
+- **Formatting Requirements**: Use standard Markdown formatting. Code blocks and specific text results should be marked with backticks. Skilled in applying four or more \`\`\`\`markdown wrappers.
+
+## 1. Search and Evidence Standards
+Typically, the results of web searches only constitute third-party suggestions and are not directly credible; they must be cross-verified with sources to provide users with absolutely authoritative and correct answers.
+
+### Search Trigger Conditions
+Strictly distinguish between internal and external knowledge. Avoid speculation based on general internal knowledge. When uncertain, explicitly inform the user.
+
+For example, when using the \`fastapi\` library to encapsulate an API endpoint, despite possessing common-sense knowledge internally, you must still rely on the latest search results or official documentation for reliable implementation.
+
+### Search Execution Guidelines
+
+- Use the \`mcp__grok-search\` tool for web searches
+- Execute independent search requests in parallel; sequential execution applies only when dependencies exist
+- Evaluate search results for quality: analyze relevance, source credibility, cross-source consistency, and completeness. Conduct supplementary searches if gaps exist
+
+### Source Quality Standards
+
+- Key factual claims must be supported by >=2 independent sources. If relying on a single source, explicitly state this limitation
+- Conflicting sources: Present evidence from both sides, assess credibility and timeliness, identify the stronger evidence, or declare unresolved discrepancies
+- Empirical conclusions must include confidence levels (High/Medium/Low)
+- Citation format: [Author/Organization, Year/Date, Section/URL]. Fabricated references are strictly prohibited
+
+## 2. Reasoning and Expression Principles
+
+- Be concise, direct, and information-dense: Use lists for discrete items; paragraphs for arguments
+- Challenge flawed premises: When user logic contains errors, pinpoint specific issues with evidence
+- All conclusions must specify: Applicable conditions, scope boundaries, and known limitations
+- Avoid greetings, pleasantries, filler adjectives, and emotional expressions
+- When uncertain: State unknowns and reasons before presenting confirmed facts
+<!-- CCG-GROK-SEARCH-PROMPT-END -->
+`
+
+async function appendGrokPromptToClaudeMd(): Promise<void> {
+  const claudeMdPath = join(homedir(), '.claude', 'CLAUDE.md')
+
+  let content = ''
+  if (await fs.pathExists(claudeMdPath)) {
+    content = await fs.readFile(claudeMdPath, 'utf-8')
+  }
+
+  if (content.includes('CCG-GROK-SEARCH-PROMPT')) {
+    return
+  }
+
+  await fs.ensureDir(join(homedir(), '.claude'))
+  await fs.appendFile(claudeMdPath, GROK_SEARCH_PROMPT, 'utf-8')
+}
+
+async function handleGrokSearch(): Promise<void> {
+  console.log()
+  console.log(ansis.cyan.bold('  🔍 联网搜索 MCP (grok-search)'))
+  console.log(ansis.gray('  比 Claude Code 内置联网更好用'))
+  console.log()
+
+  console.log(ansis.cyan('  📖 获取 API Keys：'))
+  console.log(`     Tavily: ${ansis.underline('https://www.tavily.com/')} ${ansis.gray('(免费额度 1000次/月)')}`)
+  console.log(`     Firecrawl: ${ansis.underline('https://www.firecrawl.dev/')} ${ansis.gray('(注册即送额度)')}`)
+  console.log(`     Grok API: ${ansis.gray('需自行部署 grok2api（可选）')}`)
+  console.log()
+
+  const answers = await inquirer.prompt([
+    { type: 'input', name: 'grokApiUrl', message: `GROK_API_URL ${ansis.gray('(可选)')}`, default: '' },
+    { type: 'password', name: 'grokApiKey', message: `GROK_API_KEY ${ansis.gray('(可选)')}`, mask: '*' },
+    { type: 'password', name: 'tavilyKey', message: `TAVILY_API_KEY ${ansis.gray('(可选)')}`, mask: '*' },
+    { type: 'password', name: 'firecrawlKey', message: `FIRECRAWL_API_KEY ${ansis.gray('(可选)')}`, mask: '*' },
+  ])
+
+  const env: Record<string, string> = {}
+  if (answers.grokApiUrl?.trim()) env.GROK_API_URL = answers.grokApiUrl.trim()
+  if (answers.grokApiKey?.trim()) env.GROK_API_KEY = answers.grokApiKey.trim()
+  if (answers.tavilyKey?.trim()) env.TAVILY_API_KEY = answers.tavilyKey.trim()
+  if (answers.firecrawlKey?.trim()) env.FIRECRAWL_API_KEY = answers.firecrawlKey.trim()
+
+  if (Object.keys(env).length === 0) {
+    console.log(ansis.yellow('  未填写任何 Key，已跳过'))
+    return
+  }
+
+  console.log()
+  console.log(ansis.yellow('⏳ 正在安装 grok-search MCP...'))
+
+  const result = await installMcpServer(
+    'grok-search',
+    'uvx',
+    ['--from', 'git+https://github.com/GuDaStudio/GrokSearch@grok-with-tavily', 'grok-search'],
+    env,
+  )
+
+  console.log()
+  if (result.success) {
+    await appendGrokPromptToClaudeMd()
+    console.log(ansis.green('✓ grok-search MCP 配置成功！'))
+    console.log(ansis.green('✓ 全局搜索提示词已追加到 ~/.claude/CLAUDE.md'))
+    console.log(ansis.gray('  重启 Claude Code CLI 使配置生效'))
+  }
+  else {
+    console.log(ansis.red(`✗ grok-search MCP 安装失败: ${result.message}`))
+  }
+}
+
 // 辅助工具 MCP 配置
 const AUXILIARY_MCPS = [
   { id: 'context7', name: 'Context7', desc: '获取最新库文档', command: 'npx', args: ['-y', '@upstash/context7-mcp@latest'] },
@@ -197,6 +316,7 @@ async function handleUninstall(): Promise<void> {
   const allMcps = [
     { name: 'ace-tool', value: 'ace-tool' },
     { name: 'ContextWeaver', value: 'contextweaver' },
+    { name: 'grok-search', value: 'grok-search' },
     ...AUXILIARY_MCPS.map(m => ({ name: m.name, value: m.id })),
   ]
 
