@@ -140,10 +140,7 @@ async function handleInstallContextWeaver(): Promise<void> {
 // Grok Search MCP (web search)
 // ═══════════════════════════════════════════════════════
 
-const GROK_SEARCH_PROMPT = `
-
-<!-- CCG-GROK-SEARCH-PROMPT-START -->
-## 0. Language and Format Standards
+const GROK_SEARCH_PROMPT = `## 0. Language and Format Standards
 
 - **Interaction Language**: Tools and models must interact exclusively in **English**; user outputs must be in **Chinese**.
 - MUST ULRTA Thinking in ENGLISH!
@@ -155,11 +152,11 @@ Typically, the results of web searches only constitute third-party suggestions a
 ### Search Trigger Conditions
 Strictly distinguish between internal and external knowledge. Avoid speculation based on general internal knowledge. When uncertain, explicitly inform the user.
 
-For example, when using the \`fastapi\` library to encapsulate an API endpoint, despite possessing common-sense knowledge internally, you must still rely on the latest search results or official documentation for reliable implementation.
+For example, when using the \\\`fastapi\\\` library to encapsulate an API endpoint, despite possessing common-sense knowledge internally, you must still rely on the latest search results or official documentation for reliable implementation.
 
 ### Search Execution Guidelines
 
-- Use the \`mcp__grok-search\` tool for web searches
+- Use the \\\`mcp__grok-search\\\` tool for web searches
 - Execute independent search requests in parallel; sequential execution applies only when dependencies exist
 - Evaluate search results for quality: analyze relevance, source credibility, cross-source consistency, and completeness. Conduct supplementary searches if gaps exist
 
@@ -177,23 +174,24 @@ For example, when using the \`fastapi\` library to encapsulate an API endpoint, 
 - All conclusions must specify: Applicable conditions, scope boundaries, and known limitations
 - Avoid greetings, pleasantries, filler adjectives, and emotional expressions
 - When uncertain: State unknowns and reasons before presenting confirmed facts
-<!-- CCG-GROK-SEARCH-PROMPT-END -->
 `
 
-async function appendGrokPromptToClaudeMd(): Promise<void> {
+async function writeGrokPromptToRules(): Promise<void> {
+  const rulesDir = join(homedir(), '.claude', 'rules')
+  const rulePath = join(rulesDir, 'ccg-grok-search.md')
+
+  // Clean up legacy CLAUDE.md injection if present
   const claudeMdPath = join(homedir(), '.claude', 'CLAUDE.md')
-
-  let content = ''
   if (await fs.pathExists(claudeMdPath)) {
-    content = await fs.readFile(claudeMdPath, 'utf-8')
+    const content = await fs.readFile(claudeMdPath, 'utf-8')
+    if (content.includes('CCG-GROK-SEARCH-PROMPT')) {
+      const cleaned = content.replace(/\n*<!-- CCG-GROK-SEARCH-PROMPT-START -->[\s\S]*?<!-- CCG-GROK-SEARCH-PROMPT-END -->\n*/g, '')
+      await fs.writeFile(claudeMdPath, cleaned, 'utf-8')
+    }
   }
 
-  if (content.includes('CCG-GROK-SEARCH-PROMPT')) {
-    return
-  }
-
-  await fs.ensureDir(join(homedir(), '.claude'))
-  await fs.appendFile(claudeMdPath, GROK_SEARCH_PROMPT, 'utf-8')
+  await fs.ensureDir(rulesDir)
+  await fs.writeFile(rulePath, GROK_SEARCH_PROMPT, 'utf-8')
 }
 
 async function handleGrokSearch(): Promise<void> {
@@ -238,9 +236,9 @@ async function handleGrokSearch(): Promise<void> {
 
   console.log()
   if (result.success) {
-    await appendGrokPromptToClaudeMd()
+    await writeGrokPromptToRules()
     console.log(ansis.green('✓ grok-search MCP 配置成功！'))
-    console.log(ansis.green('✓ 全局搜索提示词已追加到 ~/.claude/CLAUDE.md'))
+    console.log(ansis.green('✓ 全局搜索提示词已写入 ~/.claude/rules/ccg-grok-search.md'))
     console.log(ansis.gray('  重启 Claude Code CLI 使配置生效'))
   }
   else {

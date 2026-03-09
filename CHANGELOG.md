@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.7.72] - 2026-03-09
+
+### 🔄 变更
+
+- **全局提示词迁移至 rules/**：grok-search 搜索提示词从追加到 `~/.claude/CLAUDE.md` 改为写入 `~/.claude/rules/ccg-grok-search.md`，避免 CLAUDE.md 超 200 行导致执行力下降
+- **旧版自动清理**：升级时自动清除 CLAUDE.md 中残留的 `CCG-GROK-SEARCH-PROMPT` 注入内容
+
+---
+
 ## [1.7.71] - 2026-03-09
 
 ### ✨ 新功能

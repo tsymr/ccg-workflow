@@ -290,4 +290,4 @@ MIT
 
 ---
 
-v1.7.71 | [Issues](https://github.com/fengshao1227/ccg-workflow/issues)
+v1.7.72 | [Issues](https://github.com/fengshao1227/ccg-workflow/issues)

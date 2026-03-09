@@ -60,25 +60,24 @@ async function installHook(settingsPath: string): Promise<void> {
 }
 
 /**
- * Append grok-search global prompt to ~/.claude/CLAUDE.md (never replaces existing content)
+ * Write grok-search global prompt to ~/.claude/rules/ccg-grok-search.md
+ * Uses rules/ directory for modularity — avoids bloating CLAUDE.md
  */
 async function appendGrokSearchPrompt(): Promise<void> {
+  const rulesDir = join(homedir(), '.claude', 'rules')
+  const rulePath = join(rulesDir, 'ccg-grok-search.md')
+
+  // Also clean up legacy CLAUDE.md injection if present
   const claudeMdPath = join(homedir(), '.claude', 'CLAUDE.md')
-
-  let content = ''
   if (await fs.pathExists(claudeMdPath)) {
-    content = await fs.readFile(claudeMdPath, 'utf-8')
+    const content = await fs.readFile(claudeMdPath, 'utf-8')
+    if (content.includes('CCG-GROK-SEARCH-PROMPT')) {
+      const cleaned = content.replace(/\n*<!-- CCG-GROK-SEARCH-PROMPT-START -->[\s\S]*?<!-- CCG-GROK-SEARCH-PROMPT-END -->\n*/g, '')
+      await fs.writeFile(claudeMdPath, cleaned, 'utf-8')
+    }
   }
 
-  // Already appended — skip
-  if (content.includes('CCG-GROK-SEARCH-PROMPT')) {
-    return
-  }
-
-  const prompt = `
-
-<!-- CCG-GROK-SEARCH-PROMPT-START -->
-## 0. Language and Format Standards
+  const prompt = `## 0. Language and Format Standards
 
 - **Interaction Language**: Tools and models must interact exclusively in **English**; user outputs must be in **Chinese**.
 - MUST ULRTA Thinking in ENGLISH!
@@ -112,11 +111,10 @@ For example, when using the \`fastapi\` library to encapsulate an API endpoint, 
 - All conclusions must specify: Applicable conditions, scope boundaries, and known limitations
 - Avoid greetings, pleasantries, filler adjectives, and emotional expressions
 - When uncertain: State unknowns and reasons before presenting confirmed facts
-<!-- CCG-GROK-SEARCH-PROMPT-END -->
 `
 
-  await fs.ensureDir(join(homedir(), '.claude'))
-  await fs.appendFile(claudeMdPath, prompt, 'utf-8')
+  await fs.ensureDir(rulesDir)
+  await fs.writeFile(rulePath, prompt, 'utf-8')
 }
 
 /**
@@ -668,11 +666,11 @@ export async function init(options: InitOptions = {}): Promise<void> {
       })
 
       if (grokResult.success) {
-        // Append global prompt to ~/.claude/CLAUDE.md
+        // Write global prompt to ~/.claude/rules/ccg-grok-search.md
         await appendGrokSearchPrompt()
         console.log()
         console.log(`    ${ansis.green('✓')} grok-search MCP ${ansis.gray('→ ~/.claude.json')}`)
-        console.log(`    ${ansis.green('✓')} ${i18n.t('init:grok.promptAppended')} ${ansis.gray('→ ~/.claude/CLAUDE.md')}`)
+        console.log(`    ${ansis.green('✓')} ${i18n.t('init:grok.promptAppended')} ${ansis.gray('→ ~/.claude/rules/ccg-grok-search.md')}`)
       }
       else {
         console.log()
