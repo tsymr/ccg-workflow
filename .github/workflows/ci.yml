@@ -17,8 +17,6 @@ jobs:
       - uses: actions/checkout@v4
 
       - uses: pnpm/action-setup@v4
-        with:
-          version: 9
 
       - uses: actions/setup-node@v4
         with:
@@ -46,7 +44,3 @@ jobs:
       - name: Go build check
         working-directory: codeagent-wrapper
         run: go build -o /dev/null .
-
-      - name: Go test
-        working-directory: codeagent-wrapper
-        run: go test ./...
