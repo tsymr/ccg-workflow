@@ -1,6 +1,6 @@
 import type { InstallResult } from '../types'
 import fs from 'fs-extra'
-import { join } from 'pathe'
+import { basename, join } from 'pathe'
 import { getWorkflowById } from './installer-data'
 import { PACKAGE_ROOT, injectConfigVariables, replaceHomePathsInTemplate } from './installer-template'
 
@@ -260,7 +260,7 @@ async function collectSkillNames(dir: string, depth = 0): Promise<string[]> {
         names.push(...await collectSkillNames(join(dir, entry.name), depth + 1))
       }
       else if (entry.name === 'SKILL.md' && depth > 0) {
-        names.push(dir.split('/').pop()!)
+        names.push(basename(dir))
       }
     }
   }

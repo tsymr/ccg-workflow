@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.7.83] - 2026-03-12
+
+### 🔄 变更
+
+- **安装器重构**：1878 行单文件拆分为 5 个聚焦模块（installer / installer-mcp / installer-data / installer-template / installer-prompt），净删 469 行（-25%），所有导出通过 barrel re-export 保持完全兼容
+  - `cmd()` 构建器：新增命令 = 1 行函数调用（原 12 行对象字面量）
+  - `MCP_PROVIDERS` 注册表：新增 MCP provider = 1 行配置（原 if/else 链）
+  - `getBinaryName()` 查表：新增平台支持 = 1 行映射（原 14 行 if/else）
+  - `copyMdTemplates()` 共享管线：agents/prompts/rules 安装共用
+  - `configureMcpInClaude()` 共享管线：5 个 MCP 安装函数共用
+  - `mirrorCcgServers()` 统一镜像：Codex/Gemini MCP 同步共用
+  - 删除死代码 `ALL_COMMANDS` 数组 + `normalizePath()` + `convertToGitBashPath()`
+- **零功能变更**：135 测试全过，8 个消费者文件零修改，dist 产物 API 完全一致
+
+---
+
 ## [1.7.82] - 2026-03-12
 
 ### ✨ 新功能
