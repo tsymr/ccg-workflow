@@ -42,6 +42,17 @@ export {
 } from './installer-prompt'
 
 // ═══════════════════════════════════════════════════════
+// Binary version tracking
+// ═══════════════════════════════════════════════════════
+
+/**
+ * Expected codeagent-wrapper binary version.
+ * Must match the `version` constant in codeagent-wrapper/main.go.
+ * When this differs from the installed binary, update triggers re-download.
+ */
+const EXPECTED_BINARY_VERSION = '5.8.0'
+
+// ═══════════════════════════════════════════════════════
 // Install context — shared across sub-functions
 // ═══════════════════════════════════════════════════════
 
@@ -499,15 +510,22 @@ async function installBinaryFile(ctx: InstallContext): Promise<void> {
 
     const destBinary = join(binDir, process.platform === 'win32' ? 'codeagent-wrapper.exe' : 'codeagent-wrapper')
 
-    // Skip download if binary already exists and is functional
+    // Check if binary exists, is functional, AND version matches
     if (await fs.pathExists(destBinary)) {
       try {
         const { execSync } = await import('node:child_process')
-        execSync(`"${destBinary}" --version`, { stdio: 'pipe' })
-        // Binary exists and works — skip download
-        ctx.result.binPath = binDir
-        ctx.result.binInstalled = true
-        return
+        const versionOutput = execSync(`"${destBinary}" --version`, { stdio: 'pipe' }).toString().trim()
+        const installedVersion = versionOutput.replace(/^.*version\s*/, '')
+
+        // Compare with expected version from package
+        const expectedVersion = EXPECTED_BINARY_VERSION
+        if (installedVersion === expectedVersion) {
+          // Binary exists, works, and version matches — skip download
+          ctx.result.binPath = binDir
+          ctx.result.binInstalled = true
+          return
+        }
+        // Version mismatch — fall through to re-download
       }
       catch {
         // Binary exists but broken — fall through to re-download
