@@ -54,7 +54,7 @@ EOF",
 | 分析 | `~/.claude/.ccg/prompts/codex/analyzer.md` | `~/.claude/.ccg/prompts/gemini/analyzer.md` |
 | 规划 | `~/.claude/.ccg/prompts/codex/architect.md` | `~/.claude/.ccg/prompts/gemini/architect.md` |
 
-**会话复用**：Codex 调用返回 `SESSION_ID: xxx`，**必须保存**供 `/ccg:execute` 使用。Gemini 不输出 SESSION_ID，**Gemini 后续用 `resume latest`**。
+**会话复用**：每次调用返回 `SESSION_ID: xxx`（通常由 wrapper 输出），**必须保存**以供后续 `/ccg:execute` 使用。
 
 **等待后台任务**（最大超时 600000ms = 10 分钟）：
 
@@ -129,7 +129,7 @@ TaskOutput({ task_id: "<task_id>", block: true, timeout: 600000 })
    - 关注：UI/UX 影响、用户体验、视觉设计
    - OUTPUT: 多角度解决方案 + 优劣势分析
 
-用 `TaskOutput` 等待两个模型的完整结果。**📌 保存 Codex 的 SESSION_ID**（`CODEX_SESSION`）。Gemini 无需保存，后续用 `resume latest`。
+用 `TaskOutput` 等待两个模型的完整结果。**📌 保存 SESSION_ID**（`CODEX_SESSION` 和 `GEMINI_SESSION`）。
 
 #### 2.2 交叉验证
 
@@ -185,7 +185,7 @@ TaskOutput({ task_id: "<task_id>", block: true, timeout: 600000 })
 
 ### SESSION_ID（供 /ccg:execute 使用）
 - CODEX_SESSION: <session_id>
-- GEMINI_SESSION: latest（Gemini 始终用 `resume latest`）
+- GEMINI_SESSION: <session_id>
 ```
 
 ### ⛔ Phase 2 结束：计划交付（非执行）
@@ -258,4 +258,4 @@ TaskOutput({ task_id: "<task_id>", block: true, timeout: 600000 })
 2. **不问 Y/N** – 只展示计划，让用户决定下一步
 3. **信任规则** – 后端以 Codex 为准，前端以 Gemini 为准
 4. 外部模型对文件系统**零写入权限**
-5. **SESSION_ID 交接** – 计划末尾必须包含 `CODEX_SESSION`（供 `/ccg:execute resume <SESSION_ID>` 使用）。Gemini 无需交接，execute 阶段用 `resume latest`
+5. **SESSION_ID 交接** – 计划末尾必须包含 `CODEX_SESSION` / `GEMINI_SESSION`（供 `/ccg:execute resume <SESSION_ID>` 使用）

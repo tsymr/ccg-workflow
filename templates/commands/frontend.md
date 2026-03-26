@@ -55,7 +55,7 @@ EOF",
 
 # 复用会话调用
 Bash({
-  command: "~/.claude/bin/codeagent-wrapper {{LITE_MODE_FLAG}}--progress --backend gemini --gemini-model gemini-3.1-pro-preview resume latest - \"{{WORKDIR}}\" <<'EOF'
+  command: "~/.claude/bin/codeagent-wrapper {{LITE_MODE_FLAG}}--progress --backend gemini --gemini-model gemini-3.1-pro-preview resume <GEMINI_SESSION> - \"{{WORKDIR}}\" <<'EOF'
 ROLE_FILE: <角色提示词路径>
 <TASK>
 需求：<增强后的需求（如未增强则用 $ARGUMENTS）>
@@ -77,7 +77,7 @@ EOF",
 | 规划 | `~/.claude/.ccg/prompts/gemini/architect.md` |
 | 审查 | `~/.claude/.ccg/prompts/gemini/reviewer.md` |
 
-**会话复用**：Gemini 的 stream-json 不输出 SESSION_ID，因此 Gemini 复用会话始终使用 `resume latest`（恢复最近一次会话）。
+**会话复用**：每次调用返回 `SESSION_ID: xxx`，后续阶段用 `resume xxx` 复用上下文。阶段 2 保存 `GEMINI_SESSION`，阶段 3 和 5 使用 `resume` 复用。
 
 ⛔ **Gemini 失败必须重试**：若 Gemini 调用失败（非零退出码或输出包含错误信息），最多重试 2 次（间隔 5 秒）。仅当 3 次全部失败时才报告错误并终止。
 
@@ -114,7 +114,7 @@ EOF",
 - 上下文：阶段 1 收集的项目上下文
 - OUTPUT: UI 可行性分析、推荐方案（至少 2 个）、用户体验评估
 
-**📌 Gemini 使用 `resume latest` 复用会话**（无需保存 SESSION_ID）。
+**📌 保存 SESSION_ID**（`GEMINI_SESSION`）用于后续阶段复用。
 
 输出方案（至少 2 个），等待用户选择。
 
@@ -122,7 +122,7 @@ EOF",
 
 `[模式：计划]` - Gemini 主导规划
 
-**⚠️ 必须调用 Gemini**（使用 `resume latest` 复用会话）：
+**⚠️ 必须调用 Gemini**（使用 `resume <GEMINI_SESSION>` 复用会话）：
 - ROLE_FILE: `~/.claude/.ccg/prompts/gemini/architect.md`
 - 需求：用户选择的方案
 - 上下文：阶段 2 的分析结果

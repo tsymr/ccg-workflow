@@ -84,10 +84,21 @@ type UnifiedEvent struct {
 	Result    string `json:"result,omitempty"`
 
 	// Gemini-specific fields
-	Role    string `json:"role,omitempty"`
-	Content string `json:"content,omitempty"`
-	Delta   *bool  `json:"delta,omitempty"`
-	Status  string `json:"status,omitempty"`
+	// Gemini CLI uses camelCase "sessionId" instead of snake_case "session_id"
+	SessionIDCamel string `json:"sessionId,omitempty"`
+	Role           string `json:"role,omitempty"`
+	Content        string `json:"content,omitempty"`
+	Delta          *bool  `json:"delta,omitempty"`
+	Status         string `json:"status,omitempty"`
+}
+
+// GetSessionID returns the session ID from either snake_case or camelCase field.
+// Gemini CLI uses "sessionId" (camelCase), Claude/Codex use "session_id" (snake_case).
+func (e *UnifiedEvent) GetSessionID() string {
+	if e.SessionID != "" {
+		return e.SessionID
+	}
+	return e.SessionIDCamel
 }
 
 // ItemContent represents the parsed item.text field for Codex events
@@ -161,13 +172,22 @@ func parseJSONStreamInternalWithContent(r io.Reader, warnFn func(string), infoFn
 		// Single unmarshal for all backend types
 		var event UnifiedEvent
 		if err := json.Unmarshal(line, &event); err != nil {
+			// Gemini CLI sometimes prepends non-JSON text to the init event line
+			// e.g. "MCP issues detected. Run /mcp list for status.{"type":"init",...}"
+			// Try to extract JSON from the first '{' character
+			if idx := bytes.IndexByte(line, '{'); idx > 0 {
+				if err2 := json.Unmarshal(line[idx:], &event); err2 == nil {
+					goto parsed
+				}
+			}
 			warnFn(fmt.Sprintf("Failed to parse event: %s", truncateBytes(line, 100)))
 			continue
 		}
+	parsed:
 
 		// Extract session_id early (works for all backends)
-		if event.SessionID != "" && threadID == "" {
-			threadID = event.SessionID
+		if event.GetSessionID() != "" && threadID == "" {
+			threadID = event.GetSessionID()
 			if onSessionStarted != nil {
 				onSessionStarted(threadID)
 			}
@@ -184,11 +204,11 @@ func parseJSONStreamInternalWithContent(r io.Reader, warnFn func(string), infoFn
 			}
 		}
 		isClaude := event.Subtype != "" || event.Result != ""
-		if !isClaude && event.Type == "result" && event.SessionID != "" && event.Status == "" {
+		if !isClaude && event.Type == "result" && event.GetSessionID() != "" && event.Status == "" {
 			isClaude = true
 		}
 		isGemini := event.Role != "" || event.Delta != nil || event.Status != "" ||
-			(event.Type == "init" && event.SessionID != "")
+			(event.Type == "init" && event.GetSessionID() != "")
 
 		// Handle Codex events
 		if isCodex {
@@ -300,8 +320,8 @@ func parseJSONStreamInternalWithContent(r io.Reader, warnFn func(string), infoFn
 
 		// Handle Claude events
 		if isClaude {
-			if event.SessionID != "" && threadID == "" {
-				threadID = event.SessionID
+			if event.GetSessionID() != "" && threadID == "" {
+				threadID = event.GetSessionID()
 			}
 
 			infoFn(fmt.Sprintf("Parsed Claude event #%d type=%s subtype=%s result_len=%d", totalEvents, event.Type, event.Subtype, len(event.Result)))
@@ -323,8 +343,8 @@ func parseJSONStreamInternalWithContent(r io.Reader, warnFn func(string), infoFn
 
 		// Handle Gemini events
 		if isGemini {
-			if event.SessionID != "" && threadID == "" {
-				threadID = event.SessionID
+			if event.GetSessionID() != "" && threadID == "" {
+				threadID = event.GetSessionID()
 			}
 
 			if event.Content != "" {

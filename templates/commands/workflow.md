@@ -58,7 +58,7 @@ EOF",
 
 # 复用会话调用
 Bash({
-  command: "~/.claude/bin/codeagent-wrapper {{LITE_MODE_FLAG}}--progress --backend <codex|gemini> {{GEMINI_MODEL_FLAG}}resume <SESSION_ID|latest> - \"{{WORKDIR}}\" <<'EOF'
+  command: "~/.claude/bin/codeagent-wrapper {{LITE_MODE_FLAG}}--progress --backend <codex|gemini> {{GEMINI_MODEL_FLAG}}resume <SESSION_ID> - \"{{WORKDIR}}\" <<'EOF'
 ROLE_FILE: <角色提示词路径>
 <TASK>
 需求：<增强后的需求（如未增强则用 $ARGUMENTS）>
@@ -83,7 +83,7 @@ EOF",
 | 规划 | `~/.claude/.ccg/prompts/codex/architect.md` | `~/.claude/.ccg/prompts/gemini/architect.md` |
 | 审查 | `~/.claude/.ccg/prompts/codex/reviewer.md` | `~/.claude/.ccg/prompts/gemini/reviewer.md` |
 
-**会话复用**：Codex 调用返回 `SESSION_ID: xxx`，后续用 `resume xxx` 复用。Gemini 的 stream-json 不输出 SESSION_ID，**Gemini 始终用 `resume latest`**。
+**会话复用**：每次调用返回 `SESSION_ID: xxx`，后续阶段用 `resume xxx` 复用上下文（注意：是 `resume`，不是 `--resume`）。
 
 **并行调用**：使用 `run_in_background: true` 启动，用 `TaskOutput` 等待结果。**必须等所有模型返回后才能进入下一阶段**。
 
@@ -134,7 +134,7 @@ TaskOutput({ task_id: "<task_id>", block: true, timeout: 600000 })
 - Codex：使用分析提示词，输出技术可行性、方案、风险
 - Gemini：使用分析提示词，输出 UI 可行性、方案、体验
 
-用 `TaskOutput` 等待结果。**📌 保存 Codex 的 SESSION_ID**（`CODEX_SESSION`）。Gemini 无需保存，后续用 `resume latest`。
+用 `TaskOutput` 等待结果。**📌 保存 SESSION_ID**（`CODEX_SESSION` 和 `GEMINI_SESSION`）。
 
 **务必遵循上方 `多模型调用规范` 的 `重要` 指示**
 
@@ -146,7 +146,7 @@ TaskOutput({ task_id: "<task_id>", block: true, timeout: 600000 })
 
 **并行调用**（复用会话）：
 - Codex：使用规划提示词 + `resume $CODEX_SESSION`，输出后端架构
-- Gemini：使用规划提示词 + `resume latest`，输出前端架构
+- Gemini：使用规划提示词 + `resume $GEMINI_SESSION`，输出前端架构
 
 用 `TaskOutput` 等待结果。
 

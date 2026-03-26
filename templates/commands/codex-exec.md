@@ -142,7 +142,7 @@ TaskOutput({ task_id: "<task_id>", block: true, timeout: 600000 })
    - 技术方案
    - 实施步骤
    - 关键文件列表
-   - SESSION_ID（`CODEX_SESSION`）。Gemini 无需 SESSION_ID，用 `resume latest`
+   - SESSION_ID（`CODEX_SESSION` / `GEMINI_SESSION`）
 
 3. **执行前确认**：
    向用户展示计划摘要，确认后执行：

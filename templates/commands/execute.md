@@ -31,7 +31,7 @@ $ARGUMENTS
 ```
 # 复用会话调用（推荐）- 原型生成（Implementation Prototype）
 Bash({
-  command: "~/.claude/bin/codeagent-wrapper {{LITE_MODE_FLAG}}--progress --backend <codex|gemini> {{GEMINI_MODEL_FLAG}}resume <SESSION_ID|latest> - \"{{WORKDIR}}\" <<'EOF'
+  command: "~/.claude/bin/codeagent-wrapper {{LITE_MODE_FLAG}}--progress --backend <codex|gemini> {{GEMINI_MODEL_FLAG}}resume <SESSION_ID> - \"{{WORKDIR}}\" <<'EOF'
 ROLE_FILE: <角色提示词路径>
 <TASK>
 需求：<任务描述>
@@ -64,7 +64,7 @@ EOF",
 
 ```
 Bash({
-  command: "~/.claude/bin/codeagent-wrapper {{LITE_MODE_FLAG}}--progress --backend <codex|gemini> {{GEMINI_MODEL_FLAG}}resume <SESSION_ID|latest> - \"{{WORKDIR}}\" <<'EOF'
+  command: "~/.claude/bin/codeagent-wrapper {{LITE_MODE_FLAG}}--progress --backend <codex|gemini> {{GEMINI_MODEL_FLAG}}resume <SESSION_ID> - \"{{WORKDIR}}\" <<'EOF'
 ROLE_FILE: <角色提示词路径>
 <TASK>
 Scope: Audit the final code changes.
@@ -95,7 +95,7 @@ EOF",
 | 实施 | `~/.claude/.ccg/prompts/codex/architect.md` | `~/.claude/.ccg/prompts/gemini/frontend.md` |
 | 审查 | `~/.claude/.ccg/prompts/codex/reviewer.md` | `~/.claude/.ccg/prompts/gemini/reviewer.md` |
 
-**会话复用**：Codex 用 `resume <SESSION_ID>`（从 `/ccg:plan` 获取）。Gemini 的 stream-json 不输出 SESSION_ID，**Gemini 始终用 `resume latest`**。
+**会话复用**：如果 `/ccg:plan` 提供了 SESSION_ID，使用 `resume <SESSION_ID>` 复用上下文。
 
 **等待后台任务**（最大超时 600000ms = 10 分钟）：
 
@@ -185,7 +185,7 @@ TaskOutput({ task_id: "<task_id>", block: true, timeout: 600000 })
 3. OUTPUT: `Unified Diff Patch ONLY. Strictly prohibit any actual modifications.`
 4. **Gemini 是前端设计的权威，其 CSS/React/Vue 原型为最终视觉基准**
 5. ⚠️ **警告**：忽略 Gemini 对后端逻辑的建议
-6. Gemini 复用会话始终使用 `resume latest`（无需 GEMINI_SESSION）
+6. 若计划包含 `GEMINI_SESSION`：优先 `resume <GEMINI_SESSION>`
 
 #### Route B: 后端/逻辑/算法 → Codex
 
@@ -201,7 +201,7 @@ TaskOutput({ task_id: "<task_id>", block: true, timeout: 600000 })
    - Gemini：处理前端部分
    - Codex：处理后端部分
 2. 用 `TaskOutput` 等待两个模型的完整结果
-3. Codex 用 `resume <CODEX_SESSION>`，Gemini 用 `resume latest`（若缺失则创建新会话）
+3. 各自使用计划中对应的 `SESSION_ID` 进行 `resume`（若缺失则创建新会话）
 
 **务必遵循上方 `多模型调用规范` 的 `重要` 指示**
 
@@ -258,7 +258,7 @@ TaskOutput({ task_id: "<task_id>", block: true, timeout: 600000 })
    - 输入：变更的 Diff + 目标文件
    - 关注：可访问性、设计一致性、用户体验
 
-用 `TaskOutput` 等待两个模型的完整审查结果。优先复用 Phase 3 的会话（`resume <SESSION_ID|latest>`）以保持上下文一致。
+用 `TaskOutput` 等待两个模型的完整审查结果。优先复用 Phase 3 的会话（`resume <SESSION_ID>`）以保持上下文一致。
 
 #### 5.2 整合修复
 

@@ -7,12 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [1.7.99] - 2026-03-26
+## [1.8.0] - 2026-03-26
 
 ### 🐛 修复
 
-- **Gemini `resume latest` 全模板修正**：Gemini CLI stream-json 不输出 SESSION_ID，所有涉及 Gemini resume 的模板（frontend/workflow/execute/feat/plan/spec-impl/codex-exec）统一改为 `resume latest`，Codex 保持 `resume <SESSION_ID>`
-- **spec-impl 跨阶段会话复用**：Step 4 原型 → Step 7 审查现在复用会话（Codex resume SESSION_ID / Gemini resume latest），审查阶段带有原型上下文
+- **Gemini session_id 解析修复**：Gemini CLI 的 `init` 事件前粘有 MCP 警告文本导致 JSON 解析失败，现在自动提取行中 JSON 部分，正确捕获 `session_id`
+- **Gemini 会话复用恢复**：所有模板恢复使用 `resume <SESSION_ID>`（支持并行多会话场景），不再 fallback 到 `resume latest`
+
+### ✨ 新功能
+
+- **spec-impl 跨阶段会话复用**：Step 4 原型 → Step 7 审查复用会话（`CODEX_PROTO_SESSION` / `GEMINI_PROTO_SESSION`），审查带有原型上下文，审查阶段带有原型上下文
 
 ---
 
