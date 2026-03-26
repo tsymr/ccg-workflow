@@ -50,7 +50,7 @@ export {
  * Must match the `version` constant in codeagent-wrapper/main.go.
  * When this differs from the installed binary, update triggers re-download.
  */
-const EXPECTED_BINARY_VERSION = '5.8.0'
+const EXPECTED_BINARY_VERSION = '5.9.0'
 
 // ═══════════════════════════════════════════════════════
 // Install context — shared across sub-functions

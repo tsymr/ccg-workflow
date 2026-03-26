@@ -1069,6 +1069,23 @@ func runCodexTaskWithContext(parentCtx context.Context, taskSpec TaskSpec, backe
 		}
 	}
 
+	// Emit Session-ID to stderr as soon as the backend reports it.
+	// This lets Claude Code capture the real session ID even if the
+	// task later times out or fails (where the final SESSION_ID: line
+	// in stdout would never be printed).
+	// Skip in silent mode (parallel tasks) to avoid polluting stderr.
+	var sessionIDEmitted bool
+	var onSessionStartedCallback func(string)
+	if !silent {
+		onSessionStartedCallback = func(id string) {
+			if sessionIDEmitted || id == "" {
+				return
+			}
+			sessionIDEmitted = true
+			fmt.Fprintf(os.Stderr, "  Session-ID: %s\n", id)
+		}
+	}
+
 	go func() {
 		msg, tid := parseJSONStreamInternalWithContent(stdoutReader, logWarnFn, logInfoFn, func() {
 			select {
@@ -1084,7 +1101,7 @@ func runCodexTaskWithContext(parentCtx context.Context, taskSpec TaskSpec, backe
 			if globalWebServer != nil && webSessionID != "" {
 				globalWebServer.EndSession(webSessionID, cfg.Backend)
 			}
-		}, onContentCallback, onProgressCallback)
+		}, onContentCallback, onProgressCallback, onSessionStartedCallback)
 		select {
 		case completeSeen <- struct{}{}:
 		default:

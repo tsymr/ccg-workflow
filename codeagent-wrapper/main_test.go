@@ -2601,13 +2601,14 @@ func TestRunSilentMode(t *testing.T) {
 	verbose := capture(false)
 	quiet := capture(true)
 
-	// After refactoring, logs are only written to file, not stderr
-	// Both silent and non-silent modes should produce no stderr output
+	// Silent mode (parallel tasks): no stderr output at all
 	if quiet != "" {
 		t.Fatalf("silent mode should suppress stderr, got: %q", quiet)
 	}
-	if verbose != "" {
-		t.Fatalf("non-silent mode should also suppress stderr (logs go to file), got: %q", verbose)
+	// Non-silent mode (single task): Session-ID is emitted to stderr
+	// so Claude Code can capture it even if the task later fails/times out
+	if !strings.Contains(verbose, "Session-ID: silent-session") {
+		t.Fatalf("non-silent mode should emit Session-ID to stderr, got: %q", verbose)
 	}
 }
 
@@ -3051,7 +3052,7 @@ func TestVersionFlag(t *testing.T) {
 		}
 	})
 
-	want := "codeagent-wrapper version 5.8.0\n"
+	want := "codeagent-wrapper version 5.9.0\n"
 
 	if output != want {
 		t.Fatalf("output = %q, want %q", output, want)
@@ -3067,7 +3068,7 @@ func TestVersionShortFlag(t *testing.T) {
 		}
 	})
 
-	want := "codeagent-wrapper version 5.8.0\n"
+	want := "codeagent-wrapper version 5.9.0\n"
 
 	if output != want {
 		t.Fatalf("output = %q, want %q", output, want)
@@ -3083,7 +3084,7 @@ func TestVersionLegacyAlias(t *testing.T) {
 		}
 	})
 
-	want := "codex-wrapper version 5.8.0\n"
+	want := "codex-wrapper version 5.9.0\n"
 
 	if output != want {
 		t.Fatalf("output = %q, want %q", output, want)

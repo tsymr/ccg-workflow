@@ -97,10 +97,10 @@ type ItemContent struct {
 }
 
 func parseJSONStreamInternal(r io.Reader, warnFn func(string), infoFn func(string), onMessage func(), onComplete func()) (message, threadID string) {
-	return parseJSONStreamInternalWithContent(r, warnFn, infoFn, onMessage, onComplete, nil, nil)
+	return parseJSONStreamInternalWithContent(r, warnFn, infoFn, onMessage, onComplete, nil, nil, nil)
 }
 
-func parseJSONStreamInternalWithContent(r io.Reader, warnFn func(string), infoFn func(string), onMessage func(), onComplete func(), onContent func(content, contentType string), onProgress func(line string)) (message, threadID string) {
+func parseJSONStreamInternalWithContent(r io.Reader, warnFn func(string), infoFn func(string), onMessage func(), onComplete func(), onContent func(content, contentType string), onProgress func(line string), onSessionStarted func(id string)) (message, threadID string) {
 	reader := bufio.NewReaderSize(r, jsonLineReaderSize)
 
 	if warnFn == nil {
@@ -168,6 +168,9 @@ func parseJSONStreamInternalWithContent(r io.Reader, warnFn func(string), infoFn
 		// Extract session_id early (works for all backends)
 		if event.SessionID != "" && threadID == "" {
 			threadID = event.SessionID
+			if onSessionStarted != nil {
+				onSessionStarted(threadID)
+			}
 		}
 
 		// Detect backend type by field presence
@@ -205,6 +208,9 @@ func parseJSONStreamInternalWithContent(r io.Reader, warnFn func(string), infoFn
 				threadID = event.ThreadID
 				infoFn(fmt.Sprintf("thread.started event thread_id=%s", threadID))
 				emitProgress(formatProgressLine("session_started", map[string]string{"id": threadID}))
+				if onSessionStarted != nil {
+					onSessionStarted(threadID)
+				}
 
 			case "turn.started":
 				emitProgress(formatProgressLine("turn_started", nil))

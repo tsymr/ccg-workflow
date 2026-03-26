@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.7.97] - 2026-03-26
+
+### 🐛 修复
+
+- **Gemini `-p -` 显示修正**：`Command:` 行现在显示真实的任务文本而非 `-p -`，与实际执行一致，消除误导
+- **Session-ID 早期输出**：wrapper 在 backend 返回 `session_started` 事件时立即输出 `Session-ID: xxx` 到 stderr，不再等到任务完成才输出。即使任务超时/失败，Claude 也能拿到真正的 session ID 来 resume，不再误用 PID
+
+### 🔄 变更
+
+- **Binary 版本升级**：codeagent-wrapper `5.8.0` → `5.9.0`
+
+---
+
 ## [1.7.92] - 2026-03-25
 
 ### ✨ 新功能

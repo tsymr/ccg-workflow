@@ -2,13 +2,18 @@
 
 > [根目录](../CLAUDE.md) > **skills-v2**
 
-**Last Updated**: 2026-03-25 (v1.7.92)
+**Last Updated**: 2026-03-26 (v1.7.97)
 
 ---
 
 ## 变更记录 (Changelog)
 
 > 完整变更历史请查看 [CHANGELOG.md](./CHANGELOG.md)
+
+### 2026-03-26 (v1.7.97)
+- 🐛 **Gemini `-p -` 显示修正**：`Command:` 行显示真实任务文本而非 `-p -`，消除误导
+- 🐛 **Session-ID 早期输出**：wrapper 在 `session_started` 时立即输出 `Session-ID:` 到 stderr，防止超时后 Claude 误用 PID resume
+- 🔄 **Binary 版本升级**：`5.8.0` → `5.9.0`
 
 ### 2026-03-25 (v1.7.92)
 - ✨ **初始化交互重构**：3 步流程（API 提供方 → MCP 多选 → 性能模式），赞助商预留位，MCP 多选共存

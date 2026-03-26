@@ -52,6 +52,7 @@ func TestParseJSONStreamInternalWithContent_EmitsProgressLines(t *testing.T) {
 		nil,
 		nil,
 		func(line string) { progress = append(progress, line) },
+		nil,
 	)
 
 	if message != "Done with changes" {
