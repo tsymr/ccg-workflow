@@ -2,6 +2,8 @@
 
 <div align="center">
 
+<img src="assets/logo/ccg-logo-cropped.png" alt="CCG Workflow" width="400">
+
 [![npm version](https://img.shields.io/npm/v/ccg-workflow.svg)](https://www.npmjs.com/package/ccg-workflow)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-Compatible-green.svg)](https://claude.ai/code)
