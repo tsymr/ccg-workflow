@@ -161,32 +161,51 @@ TaskOutput({ task_id: "<id>", block: true, timeout: 600000 })
 
 **Task 更新**：`currentPhase → "5-implement"`, `nextAction → "按计划执行实施"`
 
-### Phase 6: 验证 + 双模型审查 + 质量关卡
+### Phase 6: 迭代审查 [Ralph Loop]
 
 1. `git diff` 展示所有变更
 2. 运行测试（如果有）
 
-**⛔ 双模型交叉审查（变更 >30 行时必须执行）：**
+参考 `phase-guide.md § 10 Ralph Loop` 执行迭代审查（变更 >30 行时，最多 3 轮）。
+
+#### Round N 流程
+
+**⛔ 双模型交叉审查（每轮 spawn 新调用，干净上下文）：**
 3. 并行调用双模型（`run_in_background: true`，使用 model-router.md 模板）：
    - backend 模型 + reviewer 角色 — 安全、性能、错误处理
    - frontend 模型 + reviewer 角色 — 设计一致性（如涉及前端）
 4. 综合审查意见
 
-**⛔ 质量关卡（变更 >30 行时必须逐个调用 Skill，不可跳过）：**
+**⛔ 质量关卡（必须逐个调用 Skill，不可跳过）：**
 5. 调用 Skill `verify-quality` — 等待报告
 6. 调用 Skill `verify-security` — 等待报告（涉及 auth/input/crypto 时）
 7. 调用 Skill `verify-change` — 等待报告
-8. Critical 问题必须修复
-4. 检查是否满足验收标准
-5. 输出结果：
+
+**用户决定（⛔ 必须等待）：**
+- 有 Critical → `发现 N 个 Critical 问题。修复后再审一轮？[Y/n]`
+- 无 Critical → `审查通过。需要再审一轮？[y/N]`
+- 用户选择继续 → 修复 Critical 后回到 Round N+1
+- 用户选择停止 → 退出审查循环
+
+追加进度到 `.ccg/tasks/{task-name}/fix-log.jsonl`。
+
+8. 检查是否满足验收标准
+9. 输出结果：
    ```
    ✅ 开发完成
      变更: [N] 文件，[M] 行
      实现: [摘要]
      测试: [通过/跳过/失败情况]
-     质量: [Critical: N, Warning: N, Info: N]
+     审查: [N] 轮，[Critical: N, Warning: N, Info: N]
      📍 Next: 可以用 /ccg:commit 提交
    ```
+
+#### Spec Evolution（归档前必须执行）
+
+参考 `phase-guide.md § 8 Spec Evolution Protocol` 执行：
+1. 分析本次 `git diff` + 审查结果，提炼可复用的编码约定
+2. 如有值得记录的经验 → 草拟 Spec 条目，展示给用户确认后追加到 `.ccg/spec/{domain}/index.md`
+3. 无值得提炼的经验 → 跳过
 
 **Task 更新**：`status → "archived"`
 

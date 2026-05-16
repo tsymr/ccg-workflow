@@ -106,6 +106,13 @@ Gate: 双模型审查已返回 ✓
 
 如果有 Critical 发现，询问用户是否立即修复（可切换到 `direct-fix` 策略）。
 
+#### Spec Evolution（审查完成后执行）
+
+参考 `phase-guide.md § 8 Spec Evolution Protocol` 执行：
+1. 从审查发现中提炼可复用的编码规范（特别是 Critical/Warning 级反复出现的模式）
+2. 如有值得记录的经验 → 草拟 Spec 条目，展示给用户确认后追加到 `.ccg/spec/{domain}/index.md`
+3. 无值得提炼的经验 → 跳过
+
 ---
 
 ## 铁律

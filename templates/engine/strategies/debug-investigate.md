@@ -144,6 +144,13 @@ Gate: 用户已确认修复方向 ✓
      📍 Next: /ccg commit 提交修复
    ```
 
+#### Spec Evolution（归档前必须执行）
+
+参考 `phase-guide.md § 8 Spec Evolution Protocol` 执行：
+1. 分析本次调试的根因和修复方案，提炼可复用的调试经验和防御性编码约定
+2. 如有值得记录的经验（特别是非显而易见的坑）→ 草拟 Spec 条目，展示给用户确认后追加到 `.ccg/spec/{domain}/index.md`
+3. 无值得提炼的经验 → 跳过
+
 **Task 更新**：`status → "archived"`
 
 **归档任务**：

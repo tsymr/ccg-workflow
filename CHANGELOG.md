@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [3.0.2] - 2026-05-17
+
+### ✨ New Features (Trellis-inspired)
+
+- **Spec Evolution feedback loop** — Tasks auto-propose reusable coding conventions extracted from git diff + review findings before archival. User confirms before writing to `.ccg/spec/`. Added to 5 strategies: full-collaborate, guided-develop, refactor-safely, debug-investigate, review-audit. (phase-guide.md §8)
+- **Break-loop detection** — workflow-state hook tracks turn history in `.turns.json`. When same phase + nextAction repeats 3+ turns, injects `⚠️ LOOP DETECTED` warning with 5-step Break-Loop Protocol (stop, root-cause, switch approach). (phase-guide.md §9)
+- **Role-based JSONL filtering** — context.jsonl entries now support `roles` field (`implement`, `review`, `research`, `debug`). subagent-context hook auto-detects agent role from ROLE_FILE path or Agent name, injects only role-relevant context. Reduces token waste for reviewers/researchers.
+- **Ralph Loop iterative review** — Review phases in full-collaborate, guided-develop, refactor-safely upgraded to iterative loop: dual-model review → quality gates → user decides whether to continue → fix-dev (fresh Agent) → re-review. Max 3 rounds. Progress tracked in `fix-log.jsonl`. (phase-guide.md §10)
+
+### 🐛 Fixes
+
+- **Security domain files no longer installed by default** — `domains/security/` (red-team, pentest, blue-team, etc.) contains reference content that triggers antivirus/corporate security tool false positives. Installer now removes it post-copy. Users who need it can manually copy from the npm package.
+
+### 🗑️ Removed
+
+- **VitePress docs/ directory** — Removed in favor of standalone Cloudflare Pages site.
+
+---
+
 ## [3.0.1] - 2026-05-16
 
 - Task archival: completed tasks move to `.ccg/tasks/archive/YYYY-MM/` with auto-commit

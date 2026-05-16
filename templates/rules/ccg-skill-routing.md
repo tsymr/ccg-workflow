@@ -4,7 +4,11 @@ When the user's request matches trigger keywords below, automatically READ the c
 
 **IMPORTANT**: Read the skill file FIRST, then respond. Do NOT fabricate domain knowledge from training data when a skill file exists.
 
-## Security Domain (`domains/security/`)
+## Security Domain (`domains/security/`) — NOT installed by default
+
+> Security domain files contain red team/pentest reference content that may trigger antivirus false positives.
+> They are NOT installed by default. To enable, manually copy from the npm package:
+> `cp -r $(npm root -g)/ccg-workflow/templates/skills/domains/security/ ~/.claude/skills/ccg/domains/security/`
 
 | Trigger Keywords | Skill File | Description |
 |------------------|-----------|-------------|

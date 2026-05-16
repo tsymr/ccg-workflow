@@ -395,6 +395,14 @@ async function installSkillFiles(ctx: InstallContext): Promise<void> {
       errorOnExist: false,
     })
 
+    // Remove security domain files — contains red team/pentest reference content
+    // that triggers antivirus/corporate security tool false positives.
+    // Users who need it can manually copy from templates/skills/domains/security/.
+    const securityDir = join(skillsDestDir, 'domains', 'security')
+    if (await fs.pathExists(securityDir)) {
+      await fs.remove(securityDir)
+    }
+
     // Post-copy: apply template variable replacement to .md files
     const replacePathsInDir = async (dir: string): Promise<void> => {
       const entries = await fs.readdir(dir, { withFileTypes: true })

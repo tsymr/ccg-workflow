@@ -110,12 +110,16 @@ Gate: 所有步骤已执行 ✓
 Step [N/M]: [描述] — ✅ 测试通过 / ❌ 测试失败
 ```
 
-### Phase 5: 最终验证 + 双模型审查 + 质量关卡
+### Phase 5: 迭代审查 [Ralph Loop]
 
 1. 运行完整测试套件
 2. 对比基线：确保不引入新的失败
 
-**⛔ 双模型交叉审查（必须执行，使用 model-router.md 调用模板）：**
+参考 `phase-guide.md § 10 Ralph Loop` 执行迭代审查（最多 3 轮）。
+
+#### Round N 流程
+
+**⛔ 双模型交叉审查（每轮 spawn 新调用，干净上下文）：**
 
 3. 获取变更：`git diff` 全量输出
 4. 并行调用双模型审查（`run_in_background: true`）：
@@ -129,21 +133,34 @@ Step [N/M]: [描述] — ✅ 测试通过 / ❌ 测试失败
 7. 调用 Skill `verify-security` — 等待报告
 8. 调用 Skill `verify-change` — 等待报告
 
-**综合报告**：双模型审查 + 质量关卡，按严重度分级：
-- Critical → 必须修复后重新验证
-- Warning → 建议修复
-- Info → 供参考
+**综合报告**：双模型审查 + 质量关卡，按严重度分级
+
+**用户决定（⛔ 必须等待）：**
+- 有 Critical → `发现 N 个 Critical 问题。修复后再审一轮？[Y/n]`
+- 无 Critical → `审查通过。需要再审一轮？[y/N]`
+- 用户选择继续 → 修复后回到 Round N+1
+- 用户选择停止 → 退出审查循环
+
+追加进度到 `.ccg/tasks/{task-name}/fix-log.jsonl`。
 
 9. `git diff` 展示全部变更
-5. 输出结果：
+10. 对比基线，确认无回归
+11. 输出结果：
    ```
    ✅ 重构完成
      步骤: [N] 步全部通过
      变更: [文件数] 文件，[行数] 行
      测试: 基线 [N] 通过 → 重构后 [N] 通过
-     质量: [Critical: N, Warning: N, Info: N]
+     审查: [N] 轮，[Critical: N, Warning: N, Info: N]
      📍 Next: /ccg:commit 提交
    ```
+
+#### Spec Evolution（归档前必须执行）
+
+参考 `phase-guide.md § 8 Spec Evolution Protocol` 执行：
+1. 分析本次重构的 `git diff`，提炼可复用的重构模式和架构约定
+2. 如有值得记录的经验 → 草拟 Spec 条目，展示给用户确认后追加到 `.ccg/spec/{domain}/index.md`
+3. 无值得提炼的经验 → 跳过
 
 **Task 更新**：`status → "archived"`
 

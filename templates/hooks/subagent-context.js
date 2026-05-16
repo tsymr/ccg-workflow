@@ -3,6 +3,8 @@
 // Injects spec + task context when:
 //   1. codeagent-wrapper is about to be called (Bash)
 //   2. Agent Team member is about to be spawned (Agent)
+// Supports role-based filtering: context.jsonl entries with "roles" field
+// are only injected when the agent's detected role matches.
 
 'use strict';
 
@@ -28,12 +30,11 @@ try {
   // Determine trigger type
   const command = toolInput.command || '';
   const teamName = toolInput.team_name || '';
-  const agentPrompt = toolInput.prompt || '';
+  const agentName = toolInput.name || '';
 
   const isCodeagentCall = command.includes('codeagent-wrapper');
   const isTeamSpawn = !!teamName;
 
-  // Only activate for codeagent-wrapper calls or Agent Team spawns
   if (!isCodeagentCall && !isTeamSpawn) {
     process.exit(0);
   }
@@ -45,20 +46,60 @@ try {
   const task = getActiveTask(root);
   if (!task) process.exit(0);
 
+  // --- Role detection ---
+  const ROLE_FILE_MAP = {
+    'reviewer': 'review',
+    'analyzer': 'research',
+    'debugger': 'debug',
+    'tester': 'review',
+    'architect': 'implement',
+    'optimizer': 'implement',
+    'frontend': 'implement'
+  };
+  const AGENT_NAME_PATTERNS = [
+    { pattern: /dev|builder|fix|impl/i, role: 'implement' },
+    { pattern: /review|check|audit/i, role: 'review' },
+    { pattern: /research|scout|explore|analy/i, role: 'research' },
+    { pattern: /debug|diagnos/i, role: 'debug' }
+  ];
+
+  let detectedRole = 'implement'; // default
+
+  if (isCodeagentCall) {
+    const roleMatch = command.match(/ROLE_FILE:.*\/(\w+)\.md/);
+    if (roleMatch) {
+      detectedRole = ROLE_FILE_MAP[roleMatch[1]] || 'implement';
+    }
+  } else if (isTeamSpawn && agentName) {
+    for (const { pattern, role } of AGENT_NAME_PATTERNS) {
+      if (pattern.test(agentName)) {
+        detectedRole = role;
+        break;
+      }
+    }
+  }
+
   const contextParts = [];
 
-  // Inject active task info for team members
   if (isTeamSpawn) {
     contextParts.push(`<ccg-active-task>
 Active task: ${task.dir}
 Task: ${task.title || task.id} (${task.status})
 Strategy: ${task.strategy}
 Phase: ${task.currentPhase}
+Agent role: ${detectedRole}
 </ccg-active-task>`);
   }
 
-  // Read context.jsonl entries (specs + research refs)
-  const entries = readContextJsonl(task.dir);
+  // Read context.jsonl with role-based filtering
+  const allEntries = readContextJsonl(task.dir);
+  const entries = allEntries.filter(entry => {
+    if (!entry.roles || !Array.isArray(entry.roles) || entry.roles.length === 0) {
+      return true; // no roles field = inject to all
+    }
+    return entry.roles.includes(detectedRole) || entry.roles.includes('all');
+  });
+
   if (entries.length > 0) {
     const specContents = [];
     for (const entry of entries) {
@@ -75,7 +116,7 @@ Phase: ${task.currentPhase}
     }
   }
 
-  // Read PRD and plan
+  // Read PRD and plan (always inject, role-independent)
   const prd = readFileSafe(path.join(task.dir, 'requirements.md'));
   const plan = readFileSafe(path.join(task.dir, 'plan.md'));
 
@@ -93,21 +134,23 @@ Phase: ${task.currentPhase}
     contextParts.push(taskContext.join('\n'));
   }
 
-  // Read research files
-  const researchDir = path.join(task.dir, 'research');
-  if (fs.existsSync(researchDir)) {
-    try {
-      const researchFiles = fs.readdirSync(researchDir).filter(f => f.endsWith('.md'));
-      if (researchFiles.length > 0) {
-        const researchContents = researchFiles.map(f => {
-          const content = readFileSafe(path.join(researchDir, f));
-          return content ? `--- research/${f} ---\n${content.substring(0, 1500)}` : null;
-        }).filter(Boolean);
-        if (researchContents.length > 0) {
-          contextParts.push(`<ccg-research>\n${researchContents.join('\n\n')}\n</ccg-research>`);
+  // Read research files (only for research + implement roles)
+  if (detectedRole === 'research' || detectedRole === 'implement') {
+    const researchDir = path.join(task.dir, 'research');
+    if (fs.existsSync(researchDir)) {
+      try {
+        const researchFiles = fs.readdirSync(researchDir).filter(f => f.endsWith('.md'));
+        if (researchFiles.length > 0) {
+          const researchContents = researchFiles.map(f => {
+            const content = readFileSafe(path.join(researchDir, f));
+            return content ? `--- research/${f} ---\n${content.substring(0, 1500)}` : null;
+          }).filter(Boolean);
+          if (researchContents.length > 0) {
+            contextParts.push(`<ccg-research>\n${researchContents.join('\n\n')}\n</ccg-research>`);
+          }
         }
-      }
-    } catch { /* silent */ }
+      } catch { /* silent */ }
+    }
   }
 
   if (contextParts.length === 0) process.exit(0);

@@ -152,6 +152,27 @@ function seedContextJsonl(taskDir, projectRoot) {
   try { fs.writeFileSync(jsonlPath, lines.join('\n') + '\n', 'utf-8'); } catch { /* silent */ }
 }
 
+function trackTurn(taskDir, phase, nextAction) {
+  const turnsPath = path.join(taskDir, '.turns.json');
+  let turns = [];
+  try { turns = JSON.parse(fs.readFileSync(turnsPath, 'utf-8')); } catch { /* fresh */ }
+  turns.push({ phase: phase || '', next: nextAction || '', ts: Date.now() });
+  if (turns.length > 10) turns = turns.slice(-10);
+  try { fs.writeFileSync(turnsPath, JSON.stringify(turns), 'utf-8'); } catch { /* silent */ }
+  return turns;
+}
+
+function detectLoop(turns, threshold) {
+  threshold = threshold || 3;
+  if (turns.length < threshold) return null;
+  const recent = turns.slice(-threshold);
+  const key = `${recent[0].phase}|${recent[0].next}`;
+  const allSame = recent.every(t => `${t.phase}|${t.next}` === key);
+  if (!allSame) return null;
+  const elapsed = (recent[recent.length - 1].ts - recent[0].ts) / 1000;
+  return { phase: recent[0].phase, nextAction: recent[0].next, count: threshold, elapsedSec: Math.round(elapsed) };
+}
+
 module.exports = {
   findProjectRoot,
   getActiveTask,
@@ -163,5 +184,7 @@ module.exports = {
   outputHook,
   archiveTask,
   autoCommitTask,
-  seedContextJsonl
+  seedContextJsonl,
+  trackTurn,
+  detectLoop
 };

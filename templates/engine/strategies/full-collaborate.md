@@ -225,21 +225,25 @@ SendMessage({ to: "reviewer", message: { type: "shutdown_request" } })
 2. 按 plan.md 中的 Layer 顺序逐文件实施
 3. 仍然遵守质量关卡
 
-### Phase 5: 优化审查 + 质量关卡 [required]
+### Phase 5: 迭代审查 [required · Ralph Loop]
 
 `[模式：优化]`
 
 **Gate check**: 实施已完成
 
-**Task 更新**：`currentPhase → "5-optimization"`, `nextAction → "双模型审查 + 质量关卡"`
+**Task 更新**：`currentPhase → "5-optimization"`, `nextAction → "Ralph Loop Round 1: 双模型审查 + 质量关卡"`
 
-#### 5a. 双模型交叉审查
+参考 `phase-guide.md § 10 Ralph Loop` 执行迭代审查。最多 3 轮。
 
-**并行调用**：
+#### Round N 流程（N=1,2,3）
+
+**5a. 双模型交叉审查（每轮 spawn 新 Agent，干净上下文）**
+
+**并行调用**（`run_in_background: true`）：
 - **backend 模型**：reviewer 角色 — 关注安全、性能、错误处理
 - **frontend 模型**：reviewer 角色 — 关注可访问性、设计一致性
 
-#### 5b. 质量关卡
+**5b. 质量关卡**
 
 **⛔ 以下 Skill 必须逐个调用执行，不可跳过，不可用自己的判断替代：**
 
@@ -247,17 +251,35 @@ SendMessage({ to: "reviewer", message: { type: "shutdown_request" } })
 2. 调用 Skill `verify-quality` — 等待报告
 3. 调用 Skill `verify-change` — 等待报告
 
-任何关卡报告 **Critical** → 必须修复后重新运行该关卡，才能进入 Phase 6。
-
-#### 5c. 综合报告
+**5c. 综合报告**
 
 整合审查意见 + 质量关卡结果，按严重度分级：
 - **Critical**：必须修复（阻塞交付）
 - **Warning**：建议修复
 - **Info**：供参考
 
-展示审查结果，用户确认后执行必要的优化。
-**持久化**：写入 `.ccg/tasks/{task-name}/review.md`
+**持久化**：写入 `.ccg/tasks/{task-name}/review.md`（每轮覆盖）
+
+追加进度到 `.ccg/tasks/{task-name}/fix-log.jsonl`：
+```jsonl
+{"round": N, "critical": X, "warning": Y, "info": Z, "ts": "ISO"}
+```
+
+**5d. 用户决定（⛔ 必须等待）**
+
+展示审查结果后询问用户：
+- 有 Critical → `发现 N 个 Critical 问题。修复后再审一轮？[Y/n]`
+- 无 Critical 但有 Warning → `无 Critical 问题。需要再审一轮处理 Warning？[y/N]`
+- 全部通过 → 直接进入 Phase 6
+
+用户选择继续 →
+1. spawn fix-dev（**新 Agent，干净上下文**）修复 Critical/Warning
+2. fix-dev 完成后回到 5a 开始 Round N+1
+3. 追加修复记录到 fix-log.jsonl
+
+用户选择停止 → 进入 Phase 6
+
+**第 3 轮仍有 Critical** → 强制停止，建议回退到 Phase 3 重新规划。
 
 ### Phase 6: 最终验收
 
@@ -276,6 +298,13 @@ SendMessage({ to: "reviewer", message: { type: "shutdown_request" } })
      审查: [Critical: N, Warning: N, Info: N]
      📍 Next: /ccg commit 提交，或查看 .ccg/tasks/{task-name}/ 中的完整记录
    ```
+
+#### Spec Evolution（归档前必须执行）
+
+参考 `phase-guide.md § 8 Spec Evolution Protocol` 执行：
+1. 分析本次 `git diff` + `review.md`，提炼可复用的编码约定和经验教训
+2. 如有值得记录的经验 → 草拟 Spec 条目，展示给用户确认后追加到 `.ccg/spec/{domain}/index.md`
+3. 无值得提炼的经验 → 跳过（不强行凑）
 
 **Task 更新**：`status → "archived"`
 
