@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [3.0.8] - 2026-05-18
+
+### 🐛 Fixes
+
+- **Codex agent TOML aligned with Trellis format** — Restored `sandbox_mode = "workspace-write"` as top-level string field, added `[features] multi_agent = false` + `[features.multi_agent_v2] enabled = false` for recursion guard. Matches Trellis's proven schema exactly.
+- **Codex hooks.json format** — Changed from simple array to Claude Code-style nested format (`{"hooks": {"UserPromptSubmit": [...]}}`) matching Trellis's working format.
+- **Codex config.toml** — Added detailed comments explaining trust requirements and timeout rationale, aligned with Trellis config style.
+- **Agent developer_instructions** — Added recursion guard sections ("You MUST NOT spawn another sub-agent") and context loading steps, following Trellis's battle-tested pattern.
+
+---
+
 ## [3.0.7] - 2026-05-18
 
 ### 🐛 Fixes
