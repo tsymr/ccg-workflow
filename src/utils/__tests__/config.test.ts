@@ -2,10 +2,10 @@ import { describe, expect, it } from 'vitest'
 import { createDefaultConfig, createDefaultRouting } from '../config'
 
 describe('createDefaultRouting', () => {
-  it('returns gemini as frontend primary', () => {
+  it('returns antigravity as frontend primary', () => {
     const routing = createDefaultRouting()
-    expect(routing.frontend.primary).toBe('gemini')
-    expect(routing.frontend.models).toEqual(['gemini'])
+    expect(routing.frontend.primary).toBe('antigravity')
+    expect(routing.frontend.models).toEqual(['antigravity'])
   })
 
   it('returns codex as backend primary', () => {
@@ -16,7 +16,7 @@ describe('createDefaultRouting', () => {
 
   it('returns both models for review', () => {
     const routing = createDefaultRouting()
-    expect(routing.review.models).toEqual(['codex', 'gemini'])
+    expect(routing.review.models).toEqual(['codex', 'antigravity'])
     expect(routing.review.strategy).toBe('parallel')
   })
 

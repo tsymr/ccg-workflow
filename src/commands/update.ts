@@ -121,7 +121,8 @@ async function askReconfigureRouting(currentRouting?: ModelRouting): Promise<Mod
     name: 'selectedFrontend',
     message: i18n.t('init:selectFrontendModels'),
     choices: [
-      { name: 'Gemini', value: 'gemini' as ModelType, checked: currentRouting?.frontend.models.includes('gemini') ?? true },
+      { name: 'Antigravity', value: 'antigravity' as ModelType, checked: currentRouting?.frontend.models.includes('antigravity') ?? true },
+      { name: 'Gemini', value: 'gemini' as ModelType, checked: currentRouting?.frontend.models.includes('gemini') ?? false },
       { name: 'Claude', value: 'claude' as ModelType, checked: currentRouting?.frontend.models.includes('claude') ?? false },
       { name: 'Codex', value: 'codex' as ModelType, checked: currentRouting?.frontend.models.includes('codex') ?? false },
     ],
@@ -135,6 +136,7 @@ async function askReconfigureRouting(currentRouting?: ModelRouting): Promise<Mod
     message: i18n.t('init:selectBackendModels'),
     choices: [
       { name: 'Codex', value: 'codex' as ModelType, checked: currentRouting?.backend.models.includes('codex') ?? true },
+      { name: 'Antigravity', value: 'antigravity' as ModelType, checked: currentRouting?.backend.models.includes('antigravity') ?? false },
       { name: 'Gemini', value: 'gemini' as ModelType, checked: currentRouting?.backend.models.includes('gemini') ?? false },
       { name: 'Claude', value: 'claude' as ModelType, checked: currentRouting?.backend.models.includes('claude') ?? false },
     ],

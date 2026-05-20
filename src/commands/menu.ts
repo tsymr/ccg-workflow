@@ -11,7 +11,7 @@ import { parse as parseTOML } from 'smol-toml'
 import { version } from '../../package.json'
 import { configMcp } from './config-mcp'
 import { i18n } from '../i18n'
-import { installCodexMode, uninstallWorkflows } from '../utils/installer'
+import { installCodexMode, uninstallCodexMode, uninstallWorkflows } from '../utils/installer'
 import { readCcgConfig, writeCcgConfig } from '../utils/config'
 import { init } from './init'
 import { update } from './update'
@@ -453,7 +453,7 @@ async function configModelRouting(): Promise<void> {
   console.log()
 
   // Show current routing
-  const currentFrontend = config?.routing?.frontend?.primary || 'gemini'
+  const currentFrontend = config?.routing?.frontend?.primary || 'antigravity'
   const currentBackend = config?.routing?.backend?.primary || 'codex'
   const currentGeminiModel = config?.routing?.geminiModel || 'gemini-3.1-pro-preview'
 
@@ -471,7 +471,8 @@ async function configModelRouting(): Promise<void> {
     name: 'selectedFrontend',
     message: i18n.t('init:model.selectFrontend'),
     choices: [
-      { name: `Gemini ${ansis.green(`(${i18n.t('init:model.recommended')})`)}`, value: 'gemini' },
+      { name: `Antigravity ${ansis.green(`(${i18n.t('init:model.recommended')})`)}`, value: 'antigravity' },
+      { name: 'Gemini', value: 'gemini' },
       { name: 'Codex', value: 'codex' },
     ],
     default: currentFrontend,
@@ -483,8 +484,9 @@ async function configModelRouting(): Promise<void> {
     name: 'selectedBackend',
     message: i18n.t('init:model.selectBackend'),
     choices: [
-      { name: 'Gemini', value: 'gemini' },
       { name: `Codex ${ansis.green(`(${i18n.t('init:model.recommended')})`)}`, value: 'codex' },
+      { name: 'Antigravity', value: 'antigravity' },
+      { name: 'Gemini', value: 'gemini' },
     ],
     default: currentBackend,
   }])
@@ -640,17 +642,55 @@ async function handleCodexMode(): Promise<void> {
   console.log()
   console.log(ansis.cyan.bold(isZh ? '  Codex 多模型编排模式' : '  Codex Multi-Model Orchestration Mode'))
   console.log()
+
+  const { action } = await inquirer.prompt([{
+    type: 'list',
+    name: 'action',
+    message: isZh ? '选择操作' : 'Select action',
+    choices: [
+      { name: isZh ? '安装 / 更新 Codex 模式' : 'Install / Update Codex Mode', value: 'install' },
+      { name: isZh ? '卸载 Codex 模式（只删 CCG 文件，保留用户配置）' : 'Uninstall Codex Mode (CCG files only, preserves user config)', value: 'uninstall' },
+      { name: isZh ? '返回' : 'Back', value: 'back' },
+    ],
+  }])
+
+  if (action === 'back') return
+
+  if (action === 'uninstall') {
+    const spinner = ora(isZh ? '卸载 Codex 模式...' : 'Uninstalling Codex mode...').start()
+    const result = await uninstallCodexMode()
+    if (result.success) {
+      spinner.succeed(isZh ? 'Codex 模式已卸载' : 'Codex mode uninstalled')
+      if (result.removed.length > 0) {
+        console.log()
+        for (const f of result.removed) {
+          console.log(`  ${ansis.red('✗')} ${f}`)
+        }
+      }
+      if (result.skipped.length > 0) {
+        console.log()
+        for (const f of result.skipped) {
+          console.log(`  ${ansis.gray('○')} ${f}`)
+        }
+      }
+    }
+    else {
+      spinner.fail(isZh ? '卸载失败' : 'Uninstall failed')
+    }
+    return
+  }
+
+  // Install
   console.log(isZh
-    ? '  安装 CCG Codex 模式到 ~/.codex/，让 Codex CLI 作为主导者编排 Gemini + Claude。'
-    : '  Install CCG Codex mode to ~/.codex/, enabling Codex CLI as lead orchestrator for Gemini + Claude.',
+    ? '  安装 CCG Codex 模式到 ~/.codex/，让 Codex CLI 作为主导者编排多模型。'
+    : '  Install CCG Codex mode to ~/.codex/, enabling Codex CLI as lead orchestrator.',
   )
   console.log()
   console.log(isZh ? '  将安装:' : '  Will install:')
-  console.log('    ~/.codex/AGENTS.md              — Codex auto-read instructions')
+  console.log('    ~/.codex/AGENTS.md              — orchestration instructions')
   console.log('    ~/.codex/config.toml             — multi-agent + timeout config')
-  console.log('    ~/.codex/agents/ccg-implement.toml')
-  console.log('    ~/.codex/agents/ccg-review.toml')
-  console.log('    ~/.codex/agents/ccg-research.toml')
+  console.log('    ~/.codex/hooks.json + hooks/     — adaptive guardrail hook')
+  console.log('    ~/.codex/agents/ccg-*.toml       — sub-agent definitions')
   console.log()
 
   const { confirm } = await inquirer.prompt([{

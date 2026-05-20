@@ -107,6 +107,38 @@ func buildClaudeArgs(cfg *Config, targetArg string) []string {
 	return args
 }
 
+type AntigravityBackend struct{}
+
+func (AntigravityBackend) Name() string    { return "antigravity" }
+func (AntigravityBackend) Command() string { return "agy" }
+func (AntigravityBackend) BuildArgs(cfg *Config, targetArg string) []string {
+	return buildAntigravityArgs(cfg, targetArg)
+}
+
+func buildAntigravityArgs(cfg *Config, targetArg string) []string {
+	if cfg == nil {
+		return nil
+	}
+
+	var args []string
+
+	if cfg.SkipPermissions {
+		args = append(args, "--dangerously-skip-permissions")
+	}
+
+	if cfg.Mode == "resume" && cfg.SessionID != "" {
+		args = append(args, "--conversation", cfg.SessionID)
+	}
+
+	if cfg.Mode != "resume" && cfg.WorkDir != "" && cfg.WorkDir != "." {
+		args = append(args, "--add-dir", cfg.WorkDir)
+	}
+
+	// -p must come right before the prompt text (last positional arg)
+	args = append(args, "-p", targetArg)
+	return args
+}
+
 type GeminiBackend struct{}
 
 func (GeminiBackend) Name() string { return "gemini" }

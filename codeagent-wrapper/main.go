@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	version               = "5.10.0"
+	version               = "5.11.0"
 	defaultWorkdir        = "."
 	defaultTimeout        = 7200 // seconds (2 hours)
 	defaultCoverageTarget = 90.0
@@ -417,13 +417,14 @@ func run() (exitCode int) {
 	useStdin := cfg.ExplicitStdin || shouldUseStdin(taskText, piped)
 
 	targetArg := taskText
-	// Match the geminiDirect/geminiStdinPipe logic in executor.go so the display is accurate.
-	geminiDirect := useStdin && cfg.Backend == "gemini" && !isWindows()
-	geminiStdinPipe := useStdin && cfg.Backend == "gemini" && isWindows()
-	if useStdin && !geminiDirect && !geminiStdinPipe {
+	// Gemini/Antigravity CLI doesn't support "-" as stdin marker — pass text directly via -p.
+	promptBackend := cfg.Backend == "gemini" || cfg.Backend == "antigravity"
+	promptDirect := useStdin && promptBackend && !isWindows()
+	promptStdinPipe := useStdin && promptBackend && isWindows()
+	if useStdin && !promptDirect && !promptStdinPipe {
 		targetArg = "-"
 	}
-	if geminiStdinPipe {
+	if promptStdinPipe {
 		targetArg = ""
 	}
 	codexArgs := buildCodexArgsFn(cfg, targetArg)
@@ -478,6 +479,7 @@ func run() (exitCode int) {
 		SessionID: cfg.SessionID,
 		UseStdin:  useStdin,
 		Progress:  cfg.Progress,
+		Backend:   cfg.Backend,
 	}
 
 	result := runTaskFn(taskSpec, false, cfg.Timeout)

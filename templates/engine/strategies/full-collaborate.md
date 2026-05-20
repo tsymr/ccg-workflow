@@ -136,17 +136,21 @@ TaskOutput({ task_id: "$FRONTEND_TASK_ID", block: true, timeout: 600000 })
   nextAction → "等待用户审批计划"
 ```
 
-**⛔ HARD STOP**：展示完整计划，并询问用户选择执行模式：
+**⛔⛔⛔ HARD STOP — 你必须在这里停下来，向用户展示以下选项并等待回复。不可跳过，不可默认选择。⛔⛔⛔**
 
-```
-⛔ 计划审批 + 执行模式选择
+你现在必须输出以下内容（原样输出，不是代码块示例）：
+
+---
+⛔ **计划审批 + 执行模式选择**
 
 请审批以上计划，并选择谁来写代码：
-  [1] Agent Teams（Claude Builders 并行写，多文件同时进行）
-  [2] Codex（Codex 写代码，更快更便宜，Claude 监控审查）
-```
+1. **Agent Teams** — Claude Builders 并行写，多文件同时进行
+2. **Codex / Antigravity** — 外部模型写代码，更快更便宜，Claude 监控审查
 
-等待用户明确审批 + 选择。未审批不可进入 Phase 4。
+请回复 1 或 2（或直接说"用team"/"用codex"等）。
+---
+
+**在用户回复之前，你不可以执行任何文件写入操作。** 未审批不可进入 Phase 4。
 
 用户确认后：`task.json: gate → null`
 
@@ -239,34 +243,42 @@ SendMessage({ to: "reviewer", message: { type: "shutdown_request" } })
 
 ---
 
-#### 模式 B: Codex 实施（用户选 [2]）
+#### 模式 B: 外部模型并行实施（用户选 [2]）
 
-**Task 更新**：`currentPhase → "4-implementation"`, `nextAction → "Codex Builder 执行 plan"`
+**Task 更新**：`currentPhase → "4-implementation"`, `nextAction → "Parallel Builder 执行 plan"`
 
-Claude 作为主导者，调用 Codex 写代码：
+Claude 作为编排者，调用外部模型（Codex / Antigravity）**并行写代码**。
 
-**Step 1**: 将 plan.md 转为 Codex 可执行的任务描述（包含具体文件路径、变更说明、验证命令）
+**Step 1**: 从 plan.md 按**文件归属**拆分为并行子任务：
+- **Layer 1** — 无依赖（底层模块：model/store/util/schema）→ 并行
+- **Layer 2** — 依赖 Layer 1（上层：route/middleware/controller/component）→ 串行等 Layer 1
+- 每个子任务：文件范围 + 实施步骤 + 验证命令
 
-**Step 2**: 调用 codeagent-wrapper + builder 角色：
+**Step 2**: 调用 codeagent-wrapper `--parallel` 模式：
 
 ```
 Bash({
-  command: "~/.claude/bin/codeagent-wrapper {{LITE_MODE_FLAG}}--progress --backend codex {{GEMINI_MODEL_FLAG}}- \"$WORKDIR\" <<'CODEAGENT_EOF'\nROLE_FILE: ~/.claude/.ccg/prompts/codex/builder.md\n<TASK>\n按以下计划实施，逐个任务完成并验证。\n\n{plan.md 完整内容，包含文件路径、具体变更、验证命令}\n</TASK>\nOUTPUT: Execution Report (每个 task 的 PASS/FAIL + 变更文件列表)\nCODEAGENT_EOF",
+  command: "~/.claude/bin/codeagent-wrapper {{LITE_MODE_FLAG}}--progress --parallel --backend {{BACKEND_PRIMARY}} {{GEMINI_MODEL_FLAG}}- \"$WORKDIR\" <<'PARALLEL_EOF'\n---TASK---\nid: layer1-{name1}\nworkdir: $WORKDIR\n---CONTENT---\nROLE_FILE: ~/.claude/.ccg/prompts/{{BACKEND_PRIMARY}}/builder.md\n<TASK>\n## 文件范围（⛔ 只改这些文件）\n{file1, file2}\n\n## 实施步骤\n{steps from plan.md Layer 1}\n\n## 验证命令\n{test/lint commands}\n</TASK>\n---TASK---\nid: layer1-{name2}\nworkdir: $WORKDIR\n---CONTENT---\nROLE_FILE: ~/.claude/.ccg/prompts/{{BACKEND_PRIMARY}}/builder.md\n<TASK>\n## 文件范围\n{file3, file4}\n\n## 实施步骤\n{steps}\n</TASK>\n---TASK---\nid: layer2-{name3}\nworkdir: $WORKDIR\ndependencies: layer1-{name1},layer1-{name2}\n---CONTENT---\nROLE_FILE: ~/.claude/.ccg/prompts/{{BACKEND_PRIMARY}}/builder.md\n<TASK>\n## 文件范围\n{file5, file6}\n\n## 实施步骤\n{steps from Layer 2}\n</TASK>\nPARALLEL_EOF",
   run_in_background: true,
   timeout: 3600000,
-  description: "Codex Builder: 执行实施计划"
+  description: "Parallel Builder: {N} 个子任务（L1: {X} 并行 → L2: {Y} 串行）"
 })
 ```
 
-**Step 3**: 等待 Codex 完成，读取执行报告
+拆分原则：
+- Layer 1 子任务数量 = plan 中无依赖的文件组数（通常 2-4 个）
+- 每个子任务的文件范围**不可重叠**
+- 可混合 backend（后端任务用 codex，前端任务用 antigravity）— 在 `---TASK---` 中指定 `backend: antigravity`
+
+**Step 3**: 等待完成，读取汇总报告（wrapper 自动合并所有子任务结果）
 
 **Step 4**: Claude 审查产出：
 1. `git diff` 检查所有变更
 2. 确认变更在 plan 范围内（scope check）
-3. 如有小问题（<10 行）→ Claude 直接修复
-4. 如有大问题 → 再次调用 Codex 修复，或切换到 Claude 自己写
+3. 小问题（<10 行）→ Claude 直接修复
+4. 大问题 → 再调外部模型修复，或切换模式 A
 
-**降级**：如果 Codex 返回错误或超时 → 告知用户 "Codex 执行失败，切换到 Agent Teams" → 按模式 A 执行
+**降级**：外部模型失败/超时 → 告知用户，切换到模式 A 执行
 
 ### Phase 5: 迭代审查 [required · Ralph Loop]
 

@@ -186,12 +186,48 @@ def build_guidance(task, progress, root):
     return parts
 
 
+SUB_AGENT_NOTICE = """<ccg-sub-agent-notice>
+SUB-AGENT NOTICE — READ FIRST IF SPAWNED VIA spawn_agent
+
+If your parent session spawned you via spawn_agent with an explicit task
+message, that message is your ONLY job.
+- Execute the parent message exactly as written, then mark yourself complete.
+- Ignore all CCG workflow guidance below this notice.
+- Do NOT call spawn_agent, wait, or close_agent.
+- Do NOT modify .ccg/tasks/* or any workflow state files.
+- Do NOT run external model calls (codeagent-wrapper).
+- Only modify files explicitly listed in your dispatch message.
+</ccg-sub-agent-notice>"""
+
+
+def is_sub_agent():
+    """Detect if running inside a Codex sub-agent session.
+    Codex sub-agents spawned with fork_turns='none' get a clean
+    context but inherit the env. The parent sets CODEX_AGENT_TYPE
+    or the agent_type is visible in the process env."""
+    if os.environ.get("CODEX_AGENT_TYPE", ""):
+        return True
+    if os.environ.get("CODEX_FORK_TURNS", "") == "none":
+        return True
+    return False
+
+
 def main():
     try:
         root = find_project_root()
         if not root:
             return
         if not os.path.isdir(os.path.join(root, ".ccg")):
+            return
+
+        # Sub-agent: inject notice and skip workflow guidance
+        if is_sub_agent():
+            print(json.dumps({
+                "hookSpecificOutput": {
+                    "hookEventName": "UserPromptSubmit",
+                    "additionalContext": SUB_AGENT_NOTICE
+                }
+            }))
             return
 
         task = get_active_task(root)

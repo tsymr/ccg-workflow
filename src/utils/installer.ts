@@ -61,7 +61,7 @@ export type { SkillMeta } from './skill-registry'
  * Must match the `version` constant in codeagent-wrapper/main.go.
  * When this differs from the installed binary, update triggers re-download.
  */
-const EXPECTED_BINARY_VERSION = '5.10.0'
+const EXPECTED_BINARY_VERSION = '5.11.0'
 
 // ═══════════════════════════════════════════════════════
 // Install context — shared across sub-functions
@@ -296,7 +296,7 @@ async function installPromptFiles(ctx: InstallContext): Promise<void> {
     return
   }
 
-  for (const model of ['codex', 'gemini', 'claude']) {
+  for (const model of ['codex', 'gemini', 'claude', 'antigravity']) {
     try {
       const installed = await copyMdTemplates(
         ctx,
@@ -540,6 +540,67 @@ export async function installCodexMode(): Promise<{ success: boolean, message: s
   }
   catch (error) {
     return { success: false, message: `Failed to install Codex mode: ${error}` }
+  }
+}
+
+/**
+ * Uninstall CCG Codex mode — only removes files installed by CCG, preserves user files.
+ */
+export async function uninstallCodexMode(): Promise<{ success: boolean, removed: string[], skipped: string[] }> {
+  const codexHome = join(homedir(), '.codex')
+  const removed: string[] = []
+  const skipped: string[] = []
+
+  // CCG-managed files (exact paths)
+  const ccgFiles = [
+    join(codexHome, 'agents', 'ccg-implement.toml'),
+    join(codexHome, 'agents', 'ccg-review.toml'),
+    join(codexHome, 'agents', 'ccg-research.toml'),
+    join(codexHome, 'hooks', 'ccg-workflow.py'),
+    join(codexHome, 'hooks.json'),
+  ]
+
+  // AGENTS.md — only remove if it contains CCG marker
+  const agentsMd = join(codexHome, 'AGENTS.md')
+
+  try {
+    for (const file of ccgFiles) {
+      if (await fs.pathExists(file)) {
+        await fs.remove(file)
+        removed.push(file.replace(homedir(), '~'))
+      }
+    }
+
+    if (await fs.pathExists(agentsMd)) {
+      const content = await fs.readFile(agentsMd, 'utf-8')
+      if (content.includes('<!-- CCG:START')) {
+        await fs.remove(agentsMd)
+        removed.push('~/.codex/AGENTS.md')
+      }
+      else {
+        skipped.push('~/.codex/AGENTS.md (not managed by CCG)')
+      }
+    }
+
+    // config.toml — never delete (user may have custom settings)
+    skipped.push('~/.codex/config.toml (preserved — may contain user settings)')
+
+    // Clean up empty dirs
+    for (const dir of ['agents', 'hooks']) {
+      const dirPath = join(codexHome, dir)
+      if (await fs.pathExists(dirPath)) {
+        const files = await fs.readdir(dirPath)
+        if (files.length === 0) {
+          await fs.remove(dirPath)
+          removed.push(`~/.codex/${dir}/ (empty, removed)`)
+        }
+      }
+    }
+
+    return { success: true, removed, skipped }
+  }
+  catch (error) {
+    return { success: false, removed, skipped: [...skipped, `Error: ${error}`] }
   }
 }
 
@@ -928,9 +989,9 @@ export async function installWorkflows(
     config: {
       routing: config?.routing as InstallConfig['routing'] || {
         mode: 'smart',
-        frontend: { models: ['gemini'], primary: 'gemini' },
+        frontend: { models: ['antigravity'], primary: 'antigravity' },
         backend: { models: ['codex'], primary: 'codex' },
-        review: { models: ['codex', 'gemini'] },
+        review: { models: ['codex', 'antigravity'] },
       },
       liteMode: config?.liteMode || false,
       mcpProvider: config?.mcpProvider || 'fast-context',

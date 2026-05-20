@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"crypto/rand"
 	"encoding/hex"
@@ -856,18 +857,18 @@ func runCodexTaskWithContext(parentCtx context.Context, taskSpec TaskSpec, backe
 	useStdin := taskSpec.UseStdin
 	targetArg := taskSpec.Task
 
-	// Gemini CLI does not support "-" as stdin marker for -p flag.
+	// Gemini/Antigravity CLI does not support "-" as stdin marker for -p flag.
 	// On macOS/Linux: pass the actual task text directly via -p (execve preserves
 	// multi-line args in argv). On Windows: npm's .cmd wrapper routes through
 	// cmd.exe which truncates multi-line args at the first newline (Issue #129).
-	// Use stdin pipe instead and omit -p so Gemini reads from piped stdin.
-	geminiDirect := useStdin && cfg.Backend == "gemini" && !isWindows()
-	geminiStdinPipe := useStdin && cfg.Backend == "gemini" && isWindows()
-	if useStdin && !geminiDirect && !geminiStdinPipe {
+	// Use stdin pipe instead and omit -p so the CLI reads from piped stdin.
+	promptDirect := useStdin && (cfg.Backend == "gemini" || cfg.Backend == "antigravity") && !isWindows()
+	promptStdinPipe := useStdin && (cfg.Backend == "gemini" || cfg.Backend == "antigravity") && isWindows()
+	if useStdin && !promptDirect && !promptStdinPipe {
 		targetArg = "-"
 	}
-	if geminiStdinPipe {
-		targetArg = "" // signal buildGeminiArgs to omit -p flag
+	if promptStdinPipe {
+		targetArg = ""
 	}
 
 	var codexArgs []string
@@ -1026,7 +1027,7 @@ func runCodexTaskWithContext(parentCtx context.Context, taskSpec TaskSpec, backe
 
 	var stdinPipe io.WriteCloser
 	var err error
-	if useStdin && !geminiDirect {
+	if useStdin && !promptDirect {
 		stdinPipe, err = cmd.StdinPipe()
 		if err != nil {
 			logErrorFn("Failed to create stdin pipe: " + err.Error())
@@ -1089,7 +1090,48 @@ func runCodexTaskWithContext(parentCtx context.Context, taskSpec TaskSpec, backe
 		}
 	}
 
+	// Antigravity CLI outputs plain text (no JSON streaming).
+	// Read stdout directly instead of parsing JSON events.
+	isPlainTextBackend := cfg.Backend == "antigravity"
+
 	go func() {
+		if isPlainTextBackend {
+			scanner := bufio.NewScanner(stdoutReader)
+			scanner.Buffer(make([]byte, 0, 256*1024), 10*1024*1024)
+			var sb strings.Builder
+			firstLine := true
+			for scanner.Scan() {
+				line := scanner.Text()
+				if firstLine {
+					firstLine = false
+					select {
+					case messageSeen <- struct{}{}:
+					default:
+					}
+				}
+				if sb.Len() > 0 {
+					sb.WriteByte('\n')
+				}
+				sb.WriteString(line)
+				if onContentCallback != nil {
+					onContentCallback(line+"\n", "text")
+				}
+				if onProgressCallback != nil {
+					onProgressCallback(line)
+				}
+			}
+			msg := strings.TrimSpace(sb.String())
+			select {
+			case completeSeen <- struct{}{}:
+			default:
+			}
+			if globalWebServer != nil && webSessionID != "" {
+				globalWebServer.EndSession(webSessionID, cfg.Backend)
+			}
+			parseCh <- parseResult{message: msg}
+			return
+		}
+
 		msg, tid := parseJSONStreamInternalWithContent(stdoutReader, logWarnFn, logInfoFn, func() {
 			select {
 			case messageSeen <- struct{}{}:

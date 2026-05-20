@@ -78,8 +78,8 @@ export function injectConfigVariables(content: string, config: {
   const routing = config.routing || {}
 
   // Frontend models
-  const frontendModels = routing.frontend?.models || ['gemini']
-  const frontendPrimary = routing.frontend?.primary || 'gemini'
+  const frontendModels = routing.frontend?.models || ['antigravity']
+  const frontendPrimary = routing.frontend?.primary || 'antigravity'
   processed = processed.replace(/\{\{FRONTEND_MODELS\}\}/g, JSON.stringify(frontendModels))
   processed = processed.replace(/\{\{FRONTEND_PRIMARY\}\}/g, frontendPrimary)
 
@@ -90,7 +90,7 @@ export function injectConfigVariables(content: string, config: {
   processed = processed.replace(/\{\{BACKEND_PRIMARY\}\}/g, backendPrimary)
 
   // Review models
-  const reviewModels = routing.review?.models || ['codex', 'gemini']
+  const reviewModels = routing.review?.models || ['codex', 'antigravity']
   processed = processed.replace(/\{\{REVIEW_MODELS\}\}/g, JSON.stringify(reviewModels))
 
   // Routing mode

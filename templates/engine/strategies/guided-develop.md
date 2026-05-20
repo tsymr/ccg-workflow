@@ -84,7 +84,7 @@ Gate: 实施已完成 ✓
 Backend 模型：
 ```
 Bash({
-  command: "~/.claude/bin/codeagent-wrapper {{LITE_MODE_FLAG}}--progress --backend codex {{GEMINI_MODEL_FLAG}}- \"$WORKDIR\" <<'CODEAGENT_EOF'\nROLE_FILE: ~/.claude/.ccg/prompts/codex/analyzer.md\n<TASK>\n需求：{增强后的需求}\n上下文：{Phase 2 收集的项目上下文、相关代码摘要}\n</TASK>\nOUTPUT: 技术分析报告（可行性、架构建议、风险评估、实施方案对比）\nCODEAGENT_EOF",
+  command: "~/.claude/bin/codeagent-wrapper {{LITE_MODE_FLAG}}--progress --backend {{BACKEND_PRIMARY}} {{GEMINI_MODEL_FLAG}}- \"$WORKDIR\" <<'CODEAGENT_EOF'\nROLE_FILE: ~/.claude/.ccg/prompts/{{BACKEND_PRIMARY}}/analyzer.md\n<TASK>\n需求：{增强后的需求}\n上下文：{Phase 2 收集的项目上下文、相关代码摘要}\n</TASK>\nOUTPUT: 技术分析报告（可行性、架构建议、风险评估、实施方案对比）\nCODEAGENT_EOF",
   run_in_background: true,
   timeout: 3600000,
   description: "Backend 模型分析"
@@ -94,7 +94,7 @@ Bash({
 Frontend 模型（**必须同时启动，不是"如果是全栈才调"**）：
 ```
 Bash({
-  command: "~/.claude/bin/codeagent-wrapper {{LITE_MODE_FLAG}}--progress --backend gemini {{GEMINI_MODEL_FLAG}}- \"$WORKDIR\" <<'CODEAGENT_EOF'\nROLE_FILE: ~/.claude/.ccg/prompts/gemini/analyzer.md\n<TASK>\n需求：{增强后的需求}\n上下文：{Phase 2 收集的项目上下文}\n</TASK>\nOUTPUT: 从不同视角的分析报告（可行性、设计建议、风险评估）\nCODEAGENT_EOF",
+  command: "~/.claude/bin/codeagent-wrapper {{LITE_MODE_FLAG}}--progress --backend {{FRONTEND_PRIMARY}} {{GEMINI_MODEL_FLAG}}- \"$WORKDIR\" <<'CODEAGENT_EOF'\nROLE_FILE: ~/.claude/.ccg/prompts/{{FRONTEND_PRIMARY}}/analyzer.md\n<TASK>\n需求：{增强后的需求}\n上下文：{Phase 2 收集的项目上下文}\n</TASK>\nOUTPUT: 从不同视角的分析报告（可行性、设计建议、风险评估）\nCODEAGENT_EOF",
   run_in_background: true,
   timeout: 3600000,
   description: "Frontend 模型分析"
@@ -144,17 +144,21 @@ TaskOutput({ task_id: "<id>", block: true, timeout: 600000 })
   nextAction → "等待用户审批计划"
 ```
 
-**⛔ HARD STOP**：展示计划，并询问用户选择执行模式：
+**⛔⛔⛔ HARD STOP — 你必须在这里停下来，向用户展示以下选项并等待回复。不可跳过，不可默认选择。⛔⛔⛔**
 
-```
-⛔ 计划审批 + 执行模式选择
+你现在必须输出以下内容（原样输出，不是代码块示例）：
+
+---
+⛔ **计划审批 + 执行模式选择**
 
 请审批以上计划，并选择谁来写代码：
-  [1] Claude 自己写（精细控制，逐步实施）
-  [2] Codex（Codex 写代码，更快更便宜，Claude 监控审查）
-```
+1. **Claude 自己写** — 精细控制，逐步实施
+2. **Codex / Antigravity** — 外部模型写代码，更快，Claude 监控审查
 
-等待用户明确审批 + 选择。
+请回复 1 或 2（或直接说"你来写"/"用codex"等）。
+---
+
+**在用户回复之前，你不可以执行任何文件写入操作。** 违反 = 流程失控。
 
 用户确认后：
 ```
@@ -172,17 +176,37 @@ TaskOutput({ task_id: "<id>", block: true, timeout: 600000 })
 3. 每完成一个主要步骤，简要报告进度
 4. 遇到计划外的问题时告知用户，不自行扩大范围
 
-#### 模式 B: Codex 实施（用户选 [2]）
+#### 模式 B: 外部模型实施（用户选 [2]）
 
-Claude 作为主导者调用 Codex 写代码：
+Claude 作为编排者，调用外部模型（Codex / Antigravity）写代码。
 
-1. 将 plan.md 转为 Codex 可执行的任务描述
-2. 调用 codeagent-wrapper + builder 角色（参考 model-router.md 调用模板，`$ROLE = builder`）
-3. 等待 Codex 完成，读取执行报告
-4. `git diff` 审查产出，确认在 plan 范围内
-5. 小问题 Claude 直接修复，大问题再调 Codex 或切换模式 A
+**Step 1**: 从 plan.md 按文件归属拆分子任务：
+- **Layer 1** — 无依赖的任务（底层模块：model/util/store）
+- **Layer 2** — 依赖 Layer 1 的任务（上层：route/middleware/component）
+- 每个子任务标注：文件范围、实施步骤、验证命令
 
-**降级**：Codex 失败/超时 → 切换到模式 A
+**Step 2**: 生成并行任务配置，调用 codeagent-wrapper `--parallel` 模式：
+
+```
+Bash({
+  command: "~/.claude/bin/codeagent-wrapper {{LITE_MODE_FLAG}}--progress --parallel --backend {{BACKEND_PRIMARY}} {{GEMINI_MODEL_FLAG}}- \"$WORKDIR\" <<'PARALLEL_EOF'\n---TASK---\nid: layer1-{name1}\nworkdir: $WORKDIR\n---CONTENT---\nROLE_FILE: ~/.claude/.ccg/prompts/{{BACKEND_PRIMARY}}/builder.md\n<TASK>\n## 文件范围（⛔ 只改这些文件）\n{file1, file2}\n\n## 实施步骤\n{steps from plan.md}\n</TASK>\n---TASK---\nid: layer1-{name2}\nworkdir: $WORKDIR\n---CONTENT---\nROLE_FILE: ~/.claude/.ccg/prompts/{{BACKEND_PRIMARY}}/builder.md\n<TASK>\n## 文件范围\n{file3, file4}\n\n## 实施步骤\n{steps}\n</TASK>\n---TASK---\nid: layer2-{name3}\nworkdir: $WORKDIR\ndependencies: layer1-{name1},layer1-{name2}\n---CONTENT---\nROLE_FILE: ~/.claude/.ccg/prompts/{{BACKEND_PRIMARY}}/builder.md\n<TASK>\n## 文件范围\n{file5}\n\n## 实施步骤\n{steps}\n</TASK>\nPARALLEL_EOF",
+  run_in_background: true,
+  timeout: 3600000,
+  description: "Parallel Builder: {task count} 个子任务"
+})
+```
+
+**也可以用 Codex 原生 spawn 模式**（如果项目 `.codex/` 已配置 multi_agent_v2）：
+- 发送编排指令让 Codex 读 AGENTS.md 的 §5 "Parallel Spawn" 模式
+- Codex 自行 spawn ccg-implement 子代理并行写
+
+**Step 3**: 等待完成，读取汇总报告
+
+**Step 4**: Claude 审查 `git diff`，确认变更在 plan 范围内
+- 小问题 Claude 直接修复
+- 大问题再调外部模型或切换模式 A
+
+**降级**：外部模型失败/超时 → 切换到模式 A
 
 **Task 更新**：`currentPhase → "5-implement"`, `nextAction → "按计划执行实施"`
 

@@ -140,7 +140,7 @@ describe('injectConfigVariables — routing variables', () => {
   it('defaults to standard routing when not specified', () => {
     const input = '{{FRONTEND_PRIMARY}} / {{BACKEND_PRIMARY}}'
     const result = injectConfigVariables(input, {})
-    expect(result).toBe('gemini / codex')
+    expect(result).toBe('antigravity / codex')
   })
 })
 
