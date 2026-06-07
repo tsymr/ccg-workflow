@@ -145,7 +145,7 @@ CCG 在 `~/.claude/settings.json` 注册 4 个 Hook：
 |------|------|------|
 | workflow-state.js | UserPromptSubmit | 每轮注入任务状态面包屑 |
 | session-start.js | SessionStart | 会话开始/压缩时注入完整项目上下文 |
-| subagent-context.js | PreToolUse | codeagent-wrapper/Team spawn 时注入 spec + 任务上下文 |
+| subagent-context.js | PreToolUse | Team spawn 时通过 `updatedInput` 直接注入子 agent prompt；codeagent-wrapper 时注入主控上下文 |
 | skill-router.js | UserPromptSubmit | 检测域关键词，自动注入知识文件 |
 
 纯 JavaScript，零依赖，失败时静默退出。
@@ -248,4 +248,4 @@ MIT
 
 ---
 
-v3.0.4 | [Issues](https://github.com/fengshao1227/ccg-workflow/issues) | [Contributing](./CONTRIBUTING.md)
+v3.1.4 | [Issues](https://github.com/fengshao1227/ccg-workflow/issues) | [Contributing](./CONTRIBUTING.md)

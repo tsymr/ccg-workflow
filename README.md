@@ -144,7 +144,7 @@ CCG installs 4 hooks into `~/.claude/settings.json`:
 |------|-------|---------|
 | workflow-state.js | UserPromptSubmit | Injects task state breadcrumb every turn |
 | session-start.js | SessionStart | Injects full project context on session start/clear/compact |
-| subagent-context.js | PreToolUse (Bash/Agent) | Injects spec + task context into codeagent-wrapper calls and Team member spawns |
+| subagent-context.js | PreToolUse (Bash/Agent) | Injects spec + task context: directly into Team member prompt via `updatedInput`, into lead context for codeagent-wrapper calls |
 | skill-router.js | UserPromptSubmit | Auto-injects domain knowledge when keywords detected |
 
 Hooks are JavaScript, zero dependencies, silent on failure.
@@ -253,4 +253,4 @@ MIT
 
 ---
 
-v3.1.3 | [Issues](https://github.com/fengshao1227/ccg-workflow/issues) | [Contributing](./CONTRIBUTING.md)
+v3.1.4 | [Issues](https://github.com/fengshao1227/ccg-workflow/issues) | [Contributing](./CONTRIBUTING.md)

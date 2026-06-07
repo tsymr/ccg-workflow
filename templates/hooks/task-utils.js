@@ -95,13 +95,20 @@ function getGitInfo(projectRoot) {
   } catch { return { branch: 'unknown', dirtyCount: 0 }; }
 }
 
-function outputHook(eventName, additionalContext) {
-  console.log(JSON.stringify({
-    hookSpecificOutput: {
-      hookEventName: eventName,
-      additionalContext
-    }
-  }));
+// outputHook(event, additionalContext)           → inject context into the CALLING session
+// outputHook(event, null, { updatedInput, ... })  → rewrite the tool input before it runs
+//   `extra` is merged into hookSpecificOutput, so it can carry updatedInput /
+//   permissionDecision / permissionDecisionReason. Pass additionalContext = null
+//   to omit it. Back-compatible: existing 2-arg calls behave exactly as before.
+function outputHook(eventName, additionalContext, extra) {
+  const hookSpecificOutput = { hookEventName: eventName };
+  if (additionalContext != null && additionalContext !== '') {
+    hookSpecificOutput.additionalContext = additionalContext;
+  }
+  if (extra && typeof extra === 'object') {
+    Object.assign(hookSpecificOutput, extra);
+  }
+  console.log(JSON.stringify({ hookSpecificOutput }));
 }
 
 function archiveTask(taskDir, projectRoot) {
