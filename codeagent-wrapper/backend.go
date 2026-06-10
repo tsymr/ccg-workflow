@@ -86,9 +86,13 @@ func buildClaudeArgs(cfg *Config, targetArg string) []string {
 		return nil
 	}
 	args := []string{"-p"}
-	if cfg.SkipPermissions {
-		args = append(args, "--dangerously-skip-permissions")
-	}
+	// The wrapper is only ever invoked for autonomous orchestration sub-tasks
+	// (review / analysis / implementation), never interactively. Claude must run
+	// non-interactively like the gemini backend's `-y`: without bypassing
+	// permissions, the headless `-p` reviewer blocks on tool-permission gates
+	// while consuming tokens and never returns a result (#143). The old
+	// `cfg.SkipPermissions` gate was effectively dead — no caller set it.
+	args = append(args, "--dangerously-skip-permissions")
 
 	// Prevent infinite recursion: disable all setting sources (user, project, local)
 	// This ensures a clean execution environment without CLAUDE.md or skills that would trigger codeagent
