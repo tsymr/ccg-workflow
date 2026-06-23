@@ -30,6 +30,12 @@ type ClaudeBackend struct{}
 
 func (ClaudeBackend) Name() string { return "claude" }
 func (ClaudeBackend) Command() string {
+	// Allow overriding the claude executable (e.g. a relay launcher like
+	// `reclaude`) without forking. Defaults to plain `claude` so other users
+	// are unaffected.
+	if bin := strings.TrimSpace(os.Getenv("CODEAGENT_CLAUDE_BIN")); bin != "" {
+		return bin
+	}
 	return "claude"
 }
 func (ClaudeBackend) BuildArgs(cfg *Config, targetArg string) []string {

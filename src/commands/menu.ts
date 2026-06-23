@@ -410,6 +410,7 @@ async function configApi(): Promise<void> {
   const wrapperPerms = [
     'Bash(~/.claude/bin/codeagent-wrapper --backend gemini*)',
     'Bash(~/.claude/bin/codeagent-wrapper --backend codex*)',
+    'Bash(~/.claude/bin/codeagent-wrapper --backend claude*)',
   ]
   for (const perm of wrapperPerms) {
     if (!settings.permissions.allow.includes(perm))
@@ -474,6 +475,7 @@ async function configModelRouting(): Promise<void> {
       { name: `Antigravity ${ansis.green(`(${i18n.t('init:model.recommended')})`)}`, value: 'antigravity' },
       { name: 'Gemini', value: 'gemini' },
       { name: 'Codex', value: 'codex' },
+      { name: 'Claude', value: 'claude' },
     ],
     default: currentFrontend,
   }])
@@ -487,6 +489,7 @@ async function configModelRouting(): Promise<void> {
       { name: `Codex ${ansis.green(`(${i18n.t('init:model.recommended')})`)}`, value: 'codex' },
       { name: 'Antigravity', value: 'antigravity' },
       { name: 'Gemini', value: 'gemini' },
+      { name: 'Claude', value: 'claude' },
     ],
     default: currentBackend,
   }])

@@ -805,6 +805,30 @@ async function installBinaryFile(ctx: InstallContext): Promise<void> {
 
     const destBinary = join(binDir, process.platform === 'win32' ? 'codeagent-wrapper.exe' : 'codeagent-wrapper')
 
+    // Prefer a locally-built binary bundled in the package's bin/ dir. This makes
+    // local-repo / offline installs self-contained: the binary travels with the
+    // package instead of being fetched from GitHub Release. Published npm packages
+    // do NOT ship this file (excluded from the `files` whitelist), so they fall
+    // through to the version-check + download path below unchanged.
+    // Takes priority over the version-match skip so a local patched binary always
+    // wins over a pre-existing official one.
+    const localPrebuilt = join(PACKAGE_ROOT, 'bin', binaryName)
+    if (await fs.pathExists(localPrebuilt)) {
+      try {
+        await fs.copy(localPrebuilt, destBinary, { overwrite: true })
+        if (process.platform !== 'win32') await fs.chmod(destBinary, 0o755)
+        const { execSync } = await import('node:child_process')
+        execSync(`"${destBinary}" --version`, { stdio: 'pipe' })
+        ctx.result.binPath = binDir
+        ctx.result.binInstalled = true
+        return
+      }
+      catch (copyError) {
+        // Local copy failed — fall through to version-check / download.
+        ctx.result.errors.push(`Failed to use local prebuilt binary (${localPrebuilt}); falling back to download: ${copyError}`)
+      }
+    }
+
     // Check if binary exists, is functional, AND version matches
     if (await fs.pathExists(destBinary)) {
       try {
