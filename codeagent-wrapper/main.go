@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	version               = "5.11.1"
+	version               = "5.12.0"
 	defaultWorkdir        = "."
 	defaultTimeout        = 7200 // seconds (2 hours)
 	defaultCoverageTarget = 90.0
@@ -60,9 +60,6 @@ var (
 
 var forceKillDelay atomic.Int32
 
-// globalWebServer is the SSE web server for live streaming output
-var globalWebServer *WebServer
-
 func init() {
 	forceKillDelay.Store(5) // seconds - default value
 }
@@ -83,6 +80,8 @@ func runStartupCleanup() {
 	if _, err := cleanupLogsFn(); err != nil {
 		logWarn(fmt.Sprintf("cleanupOldLogs error: %v", err))
 	}
+	// Prune finished live-output spool files (owning process gone + idle).
+	cleanupOldLiveFiles(30 * time.Minute)
 }
 
 func runCleanupMode() int {
@@ -136,6 +135,8 @@ func run() (exitCode int) {
 			return 0
 		case "--cleanup":
 			return runCleanupMode()
+		case "--view", "view":
+			return runViewerFromArgs(os.Args[2:])
 		}
 	}
 
@@ -151,11 +152,6 @@ func run() (exitCode int) {
 		logger := activeLogger()
 		if logger != nil {
 			logger.Flush()
-		}
-		// Shutdown WebServer if it was started
-		if globalWebServer != nil {
-			_ = globalWebServer.Stop()
-			globalWebServer = nil
 		}
 		if err := closeLogger(); err != nil {
 			fmt.Fprintf(os.Stderr, "ERROR: failed to close logger: %v\n", err)
@@ -552,14 +548,29 @@ func printHelp() {
 Usage:
     %[1]s "task" [workdir]
     %[1]s --backend claude "task" [workdir]
-    %[1]s --lite "task" [workdir]     Lite mode (faster, no Web UI)
+    %[1]s --lite "task" [workdir]     Lite mode (faster, no live output)
     %[1]s - [workdir]              Read task from stdin
     %[1]s resume <session_id> "task" [workdir]
     %[1]s resume <session_id> - [workdir]
     %[1]s --parallel               Run tasks in parallel (config from stdin)
     %[1]s --parallel --full-output Run tasks in parallel with full output (legacy)
+    %[1]s --view [--port N] [--host H] [--open]   Live output viewer (see below)
     %[1]s --version
     %[1]s --help
+
+Live output viewer:
+    Tasks spool their live output to files under ~/.claude/.ccg/live/.
+    Run one viewer to watch every concurrent task in one multi-panel page:
+
+        %[1]s --view                 # serves http://localhost:8899
+        %[1]s --view --port 9000     # custom fixed port
+
+    On a headless/remote server, forward the fixed port once and open it locally:
+
+        ssh -L 8899:127.0.0.1:8899 you@server   # on your machine
+        %[1]s --view                             # on the server
+
+    The viewer binds 127.0.0.1 by default (only reachable via the tunnel).
 
 Parallel mode examples:
     %[1]s --parallel < tasks.txt
@@ -568,7 +579,7 @@ Parallel mode examples:
     %[1]s --parallel <<'EOF'
 
 Options:
-    --lite, -L            Lite mode: disable Web UI, faster response
+    --lite, -L            Lite mode: disable live output spooling, faster response
     --backend <name>      Select backend (codex, gemini, claude)
     --gemini-model <name> Specify Gemini model (gemini backend only)
                           Can also be set via GEMINI_MODEL environment variable
@@ -582,6 +593,9 @@ Environment Variables:
     CODEX_DISABLE_SKIP_GIT_CHECK  Disable skip-git-repo-check flag (default: false)
     CODEAGENT_ASCII_MODE       Use ASCII symbols instead of Unicode (PASS/WARN/FAIL)
     CODEAGENT_LITE_MODE        Enable lite mode (true/false)
+    CODEAGENT_LIVE_DIR         Directory for live output spool files (default: ~/.claude/.ccg/live)
+    CODEAGENT_WEB_HOST         Viewer bind host (default: 127.0.0.1)
+    CODEAGENT_WEB_PORT         Viewer fixed port (default: 8899)
 
 Exit Codes:
     0    Success

@@ -881,22 +881,27 @@ func runCodexTaskWithContext(parentCtx context.Context, taskSpec TaskSpec, backe
 		codexArgs = argsBuilder(cfg, targetArg)
 	}
 
-	// Start WebServer for this task (single-panel, random port, short-lived)
-	// Skip in lite mode for better performance
-	var webSessionID string
-	if !liteMode && globalWebServer == nil {
-		globalWebServer = NewWebServer(cfg.Backend)
-		if err := globalWebServer.Start(); err != nil {
-			logWarn(fmt.Sprintf("Failed to start web server: %v", err))
-		}
-	}
-
-	// Generate a unique session ID for WebServer tracking
-	if !liteMode && globalWebServer != nil {
+	// Spool this task's live output to <liveDir>/<session>.jsonl so the
+	// `--view` aggregator can tail every concurrent session from one page.
+	// Skipped in lite mode. Each task writes its own file, so parallel
+	// wrappers never contend for a port.
+	var spool *SpoolWriter
+	if !liteMode {
 		randBytes := make([]byte, 4)
 		rand.Read(randBytes)
-		webSessionID = fmt.Sprintf("%s-%d-%s", cfg.Backend, time.Now().UnixMilli(), hex.EncodeToString(randBytes))
-		globalWebServer.StartSession(webSessionID, cfg.Backend, taskSpec.Task)
+		sessionID := fmt.Sprintf("%s-%d-%s", cfg.Backend, time.Now().UnixMilli(), hex.EncodeToString(randBytes))
+		if sw, err := NewSpoolWriter(sessionID, cfg.Backend, taskSpec.Task); err != nil {
+			logWarn(fmt.Sprintf("Failed to open live spool: %v", err))
+		} else {
+			spool = sw
+			// Always mark the session done on return, however it ends
+			// (normal completion, error, timeout), so the viewer never
+			// shows a finished task as perpetually live. Done is idempotent.
+			defer func() {
+				spool.Done()
+				spool.Close()
+			}()
+		}
 	}
 
 	prefixMsg := func(msg string) string {
@@ -1059,13 +1064,11 @@ func runCodexTaskWithContext(parentCtx context.Context, taskSpec TaskSpec, backe
 	completeSeen := make(chan struct{}, 1)
 	parseCh := make(chan parseResult, 1)
 
-	// Create onContent callback for streaming to WebServer
+	// Create onContent callback to spool live output for the --view aggregator
 	var onContentCallback func(content, contentType string)
-	if globalWebServer != nil && webSessionID != "" {
-		sessionID := webSessionID
-		backendName := cfg.Backend
+	if spool != nil {
 		onContentCallback = func(content, contentType string) {
-			globalWebServer.SendContentWithType(sessionID, backendName, content, contentType)
+			spool.Content(content, contentType)
 		}
 	}
 
@@ -1128,9 +1131,6 @@ func runCodexTaskWithContext(parentCtx context.Context, taskSpec TaskSpec, backe
 			case completeSeen <- struct{}{}:
 			default:
 			}
-			if globalWebServer != nil && webSessionID != "" {
-				globalWebServer.EndSession(webSessionID, cfg.Backend)
-			}
 			parseCh <- parseResult{message: msg}
 			return
 		}
@@ -1144,10 +1144,6 @@ func runCodexTaskWithContext(parentCtx context.Context, taskSpec TaskSpec, backe
 			select {
 			case completeSeen <- struct{}{}:
 			default:
-			}
-			// Notify WebServer that session is complete
-			if globalWebServer != nil && webSessionID != "" {
-				globalWebServer.EndSession(webSessionID, cfg.Backend)
 			}
 		}, onContentCallback, onProgressCallback, onSessionStartedCallback)
 		select {

@@ -2,7 +2,7 @@
 
 > [根目录](../CLAUDE.md) > **skills-v2**
 
-**Last Updated**: 2026-06-18 (v3.1.6)
+**Last Updated**: 2026-07-01 (v3.1.8)
 
 > ⚠ 本文档主体仍停留在 v2.1.16 架构描述（v3.0 引擎重构后未全量同步）。下方变更记录保留 v3.x 修复轨迹，完整历史见 [CHANGELOG.md](./CHANGELOG.md)。
 
@@ -11,6 +11,9 @@
 ## 变更记录 (Changelog)
 
 > 完整变更历史请查看 [CHANGELOG.md](./CHANGELOG.md)
+
+### 2026-07-01 (v3.1.8)
+- ✨ **实时输出改为 spool + 单查看器（headless/并发友好）**：废弃"每个 wrapper 自带随机端口 SSE 服务 + 自动开浏览器"的旧模型（headless 开不了浏览器、随机端口无法隧道、并行跑起多个服务/标签页、且绑 `0.0.0.0` + `CORS *` 有暴露）。改为：每个任务把内容流 JSONL 落盘到 `~/.claude/.ccg/live/<session>.jsonl`；`codeagent-wrapper --view` 启动**单个**聚合查看器，绑 `127.0.0.1` 固定端口（默认 8899）tail 全部会话、多面板 SSE、支持回放。远程一条 `ssh -L 8899:127.0.0.1:8899 host` 隧道即可看所有并发后端，永不抢端口。新增 `--view/--port/--host/--open` + `CODEAGENT_WEB_PORT/WEB_HOST/LIVE_DIR`；`--lite` 仍完全跳过。删 `server.go`，新增 `spool.go`/`viewer.go`（含单测）。binary `5.11.1` → `5.12.0`。
 
 ### 2026-06-18 (v3.1.6)
 - ✨ **CodeGraph MCP 可选安装（#145）**：init Step 3 新增 `codegraph` 选项，本地代码知识图谱（调用链/影响范围/架构查询）。安装 MCP（`npx @colbymchenry/codegraph serve --mcp`）+ 写入 `ccg-codegraph.md` 使用规则。规则指示 AI 在无 `.codegraph/` 时自动 `codegraph init` 建索引，优先 `codegraph_explore` 查结构、`fast_context_search` 查语义、grep 查精确文本。

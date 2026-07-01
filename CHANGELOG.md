@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [3.1.8] - 2026-07-01
+
+### ✨ Features
+
+- **Live output viewer for headless/parallel runs** — Replaced the per-wrapper embedded SSE web server with a decoupled **spool + single viewer** architecture. Each task now streams its live output as JSON Lines to `~/.claude/.ccg/live/<session>.jsonl` instead of hosting its own random-port HTTP server. A single aggregating viewer (`codeagent-wrapper --view`) tails every spool file and renders all concurrent sessions in one multi-panel page on a **fixed port** (default 8899, bound to `127.0.0.1`). The page has **进行中 / 已结束 tabs** (with live count badges) and **count-adaptive panel widths** (1 session fills the width, 2 split in half, … capped at 4 columns then wrapping).
+  - **Why it matters**: The old model auto-opened a browser per task on a random port — broken on headless servers (no browser) and un-tunnelable (random port). Running Codex ∥ Gemini in parallel spun up multiple servers/tabs. The new model needs **one SSH tunnel** (`ssh -L 8899:127.0.0.1:8899 host`) to watch every parallel backend, never contends for a port, binds loopback-only (no more `0.0.0.0` + `CORS *` exposure), and supports **replay** (open the page after a task started and still see its full history).
+  - New flags/env: `--view [--port N] [--host H] [--open]`, `CODEAGENT_WEB_PORT`, `CODEAGENT_WEB_HOST`, `CODEAGENT_LIVE_DIR`. `--lite` / `CODEAGENT_LITE_MODE` still skips spooling entirely.
+  - Binary `5.11.1` → `5.12.0`. `server.go` removed; new `spool.go` + `viewer.go` (+ unit tests).
+
 ## [3.1.6] - 2026-06-18
 
 ### ✨ Features

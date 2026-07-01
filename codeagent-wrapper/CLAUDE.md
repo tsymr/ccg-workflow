@@ -2,8 +2,8 @@
 
 > [根目录](../CLAUDE.md) > **codeagent-wrapper**
 
-**Last Updated**: 2026-04-10
-**Binary Version**: v5.10.0
+**Last Updated**: 2026-07-01
+**Binary Version**: v5.12.0
 **Go Version**: 1.21+（`go.mod:1`）
 
 ---
@@ -39,6 +39,9 @@ codeagent-wrapper resume <session_id> - [工作目录]
 # 并行模式（从 stdin 读取多任务配置）
 codeagent-wrapper --parallel [--backend <name>] [--full-output] < tasks.txt
 
+# 实时输出查看器（聚合所有并发会话，单固定端口）
+codeagent-wrapper --view [--port 8899] [--host 127.0.0.1] [--open]
+
 # 其他
 codeagent-wrapper --version
 codeagent-wrapper --cleanup
@@ -51,7 +54,11 @@ codeagent-wrapper --cleanup
 | `--backend <name>` | 指定后端：`codex`、`gemini`、`claude` | `codex` |
 | `--gemini-model <name>` | Gemini 型号（仅 gemini 后端有效） | 空（后端默认） |
 | `--progress` | 向 stderr 输出紧凑进度行 | 关 |
-| `--lite` / `-L` | 精简模式：关闭 Web UI，加快响应 | 关 |
+| `--lite` / `-L` | 精简模式：关闭实时输出落盘，加快响应 | 关 |
+| `--view` | 启动实时输出查看器（tail live 目录，多面板 SSE） | — |
+| `--port <n>` | 查看器端口（仅 `--view`） | 8899 |
+| `--host <h>` | 查看器绑定地址（仅 `--view`） | 127.0.0.1 |
+| `--open` | 查看器启动后打开浏览器（仅 `--view`，headless 默认不开） | 关 |
 | `--parallel` | 并行模式，从 stdin 读取多任务配置 | — |
 | `--full-output` | 并行模式输出完整消息（传统模式） | 关（默认摘要） |
 | `--skip-permissions` | 跳过权限提示（claude 后端） | 关 |
@@ -67,7 +74,10 @@ codeagent-wrapper --cleanup
 | `CODEX_REQUIRE_APPROVAL` | 启用文件操作审批 | false |
 | `CODEX_DISABLE_SKIP_GIT_CHECK` | 禁止跳过 Git 仓库检查 | false |
 | `CODEAGENT_ASCII_MODE` | 使用 ASCII 状态符（PASS/WARN/FAIL） | false |
-| `CODEAGENT_LITE_MODE` | 精简模式 | false |
+| `CODEAGENT_LITE_MODE` | 精简模式（跳过实时输出落盘） | false |
+| `CODEAGENT_LIVE_DIR` | 实时输出 spool 目录 | `~/.claude/.ccg/live` |
+| `CODEAGENT_WEB_HOST` | 查看器绑定地址 | `127.0.0.1` |
+| `CODEAGENT_WEB_PORT` | 查看器固定端口 | `8899` |
 | `CODEAGENT_POST_MESSAGE_DELAY` | agent_message 后等待秒数（0-60） | 5s |
 | `CODEAGENT_MAX_PARALLEL_WORKERS` | 并行 worker 上限（0=不限） | 0 |
 | `GEMINI_MODEL` | Gemini 型号（低优先级，CLI 参数覆盖） | 空 |
@@ -141,9 +151,13 @@ id: task-b
 - 恢复模式：`resume <session_id>` 参数
 - 并行模式每个任务独立 session，互不干扰
 
-### WebServer SSE 流（`server.go`）
+### 实时输出：spool + 单查看器（`spool.go` / `viewer.go`）
 
-默认模式（非 `--lite`）启动一个本地 HTTP 服务（随机端口），通过 SSE 实时推送后端输出到浏览器页面，方便观察长任务进度。精简模式（`--lite`）跳过此机制。
+默认模式（非 `--lite`）下，每个任务把内容流以 **JSON Lines** 追加写到 `<CODEAGENT_LIVE_DIR>/<session>.jsonl`（默认 `~/.claude/.ccg/live/`），而不是各自起 HTTP 服务。首行为 `meta`（backend/task/pid），随后是 `reasoning`/`command`/`message`/`text` 内容行，收尾写 `done`。
+
+`codeagent-wrapper --view` 启动**单个**聚合查看器：绑定 `127.0.0.1` 固定端口（默认 8899），tail live 目录下所有 `*.jsonl`，多面板 SSE 展示所有并发会话，支持迟到连接**回放**全量历史。
+
+**为什么这样设计**：旧模型每个 wrapper 自带随机端口 HTTP 服务 + 自动开浏览器，在 headless 服务器上开不了浏览器、随机端口也无法 SSH 隧道；并行跑（Codex ∥ Gemini）会起多个服务/标签页。新模型下 wrapper 只写文件、永不抢端口，查看器一个固定端口一条 `ssh -L` 隧道即可看全部并发流，且绑回环消除了旧版 `0.0.0.0` + `CORS *` 暴露。`--lite` / `CODEAGENT_LITE_MODE` 完全跳过落盘。
 
 ---
 
@@ -182,11 +196,12 @@ id: task-b
 | `parser.go` | `parseJSONStreamInternal()`——流式解析 Codex / Claude / Gemini JSON 事件；提取 `agent_message`、`session_id`；支持进度回调 `onProgressCallback`、session 回调 `onSessionStartedCallback` |
 | `filter.go` | `filteringWriter`——过滤 stderr 噪声行（`[STARTUP]`、`YOLO mode`、Node.js warning 等） |
 
-### 服务层
+### 实时输出层
 
 | 文件 | 职责 |
 |------|------|
-| `server.go` | SSE Web Server；`WebServer` 结构体；`StartSession()` / `EndSession()` / `SendContentWithType()`；浏览器实时预览后端输出 |
+| `spool.go` | `SpoolWriter`——把会话内容流 JSONL 落盘到 `liveDir()`；`Content()` / `Done()` / `Close()`；`sanitizeSessionID()` 防路径逃逸；`cleanupOldLiveFiles()` 清理已结束 spool（进程存活则保留） |
+| `viewer.go` | `--view` 聚合查看器；`runViewer()` / `runViewerFromArgs()`；HTTP 处理 `/`、`/api/sessions`、`/api/stream/<id>`（tail 文件转 SSE，回放后 done 即关闭）；`openBrowser()`（仅 `--open`） |
 
 ### 平台适配层
 
@@ -207,7 +222,7 @@ id: task-b
 
 ## 测试矩阵
 
-共 17 个测试文件，源码/测试比约 1.2:1，覆盖场景：
+共 19 个测试文件，源码/测试比约 1.2:1，覆盖场景：
 
 | 测试文件 | 覆盖场景 |
 |----------|----------|
@@ -228,6 +243,8 @@ id: task-b
 | `wrapper_name_test.go` | 二进制名解析、symlink 别名、Windows .exe 后缀去除 |
 | `path_normalization_test.go` | 工作目录路径规范化（相对路径、`~`、Windows 盘符） |
 | `utils_test.go` | `resolveTimeout()` 解析规则；输出提取辅助函数 |
+| `spool_test.go` | `SpoolWriter` JSONL 往返、nil 安全、`sanitizeSessionID` 防逃逸、`readSpoolSummary` done 检测、`cleanupOldLiveFiles`（存活进程保留/死进程清理） |
+| `viewer_test.go` | `/api/sessions` 列举、`/api/stream/<id>` 回放并 done 关闭、404、index HTML |
 
 ---
 
@@ -272,8 +289,8 @@ bash build-all.sh
 
 | 文件 | 位置 | 当前值 |
 |------|------|--------|
-| `codeagent-wrapper/main.go` | `version = "5.10.0"` （`main.go:17`） | `5.10.0` |
-| `src/utils/installer.ts` | `EXPECTED_BINARY_VERSION = '5.10.0'` | `5.10.0` |
+| `codeagent-wrapper/main.go` | `version = "5.12.0"` （`main.go:17`） | `5.12.0` |
+| `src/utils/installer.ts` | `EXPECTED_BINARY_VERSION = '5.12.0'` | `5.12.0` |
 
 两边不一致的后果：用户运行 `npx ccg-workflow update` 时无法触发 binary 重新下载，继续使用旧版 binary。
 
