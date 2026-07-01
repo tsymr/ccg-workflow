@@ -11,6 +11,8 @@ import (
 // ~/.claude/.ccg/live directory. Individual tests may still override
 // CODEAGENT_LIVE_DIR via t.Setenv.
 func TestMain(m *testing.M) {
+	// Never auto-spawn a real background viewer from the test suite.
+	_ = os.Unsetenv("CODEAGENT_AUTO_VIEW")
 	dir, err := os.MkdirTemp("", "ccg-live-test-")
 	if err == nil {
 		_ = os.Setenv("CODEAGENT_LIVE_DIR", dir)

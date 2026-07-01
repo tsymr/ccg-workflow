@@ -593,6 +593,7 @@ Environment Variables:
     CODEX_DISABLE_SKIP_GIT_CHECK  Disable skip-git-repo-check flag (default: false)
     CODEAGENT_ASCII_MODE       Use ASCII symbols instead of Unicode (PASS/WARN/FAIL)
     CODEAGENT_LITE_MODE        Enable lite mode (true/false)
+    CODEAGENT_AUTO_VIEW        Auto-start the live viewer before running tasks (opt-in: 1/true)
     CODEAGENT_LIVE_DIR         Directory for live output spool files (default: ~/.claude/.ccg/live)
     CODEAGENT_WEB_HOST         Viewer bind host (default: 127.0.0.1)
     CODEAGENT_WEB_PORT         Viewer fixed port (default: 8899)

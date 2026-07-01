@@ -887,6 +887,7 @@ func runCodexTaskWithContext(parentCtx context.Context, taskSpec TaskSpec, backe
 	// wrappers never contend for a port.
 	var spool *SpoolWriter
 	if !liteMode {
+		maybeAutoStartViewer() // no-op unless CODEAGENT_AUTO_VIEW is set; runs once per process
 		randBytes := make([]byte, 4)
 		rand.Read(randBytes)
 		sessionID := fmt.Sprintf("%s-%d-%s", cfg.Backend, time.Now().UnixMilli(), hex.EncodeToString(randBytes))

@@ -27,18 +27,9 @@ const defaultViewerPort = 8899
 // Flags: --port <n> / --port=<n>, --host <h> / --host=<h>, --open.
 // Env: CODEAGENT_WEB_PORT, CODEAGENT_WEB_HOST override the defaults.
 func runViewerFromArgs(args []string) int {
-	host := "127.0.0.1"
-	port := defaultViewerPort
+	host := viewerHost()
+	port := viewerPort()
 	open := false
-
-	if h := strings.TrimSpace(os.Getenv("CODEAGENT_WEB_HOST")); h != "" {
-		host = h
-	}
-	if p := strings.TrimSpace(os.Getenv("CODEAGENT_WEB_PORT")); p != "" {
-		if v, err := strconv.Atoi(p); err == nil {
-			port = v
-		}
-	}
 
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
@@ -86,6 +77,10 @@ func runViewer(host string, port int, open bool) int {
 
 	listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", host, port))
 	if err != nil {
+		// When auto-spawned, another wrapper likely won the port first; exit quietly.
+		if os.Getenv("CODEAGENT_VIEW_QUIET") == "1" {
+			return 0
+		}
 		fmt.Fprintf(os.Stderr, "ERROR: cannot listen on %s:%d: %v\n", host, port, err)
 		return 1
 	}

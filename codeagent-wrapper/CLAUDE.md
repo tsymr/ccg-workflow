@@ -78,6 +78,7 @@ codeagent-wrapper --cleanup
 | `CODEAGENT_LIVE_DIR` | 实时输出 spool 目录 | `~/.claude/.ccg/live` |
 | `CODEAGENT_WEB_HOST` | 查看器绑定地址 | `127.0.0.1` |
 | `CODEAGENT_WEB_PORT` | 查看器固定端口 | `8899` |
+| `CODEAGENT_AUTO_VIEW` | 跑任务前自动拉起查看器单例(opt-in) | false |
 | `CODEAGENT_POST_MESSAGE_DELAY` | agent_message 后等待秒数（0-60） | 5s |
 | `CODEAGENT_MAX_PARALLEL_WORKERS` | 并行 worker 上限（0=不限） | 0 |
 | `GEMINI_MODEL` | Gemini 型号（低优先级，CLI 参数覆盖） | 空 |
