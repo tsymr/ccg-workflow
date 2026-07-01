@@ -533,6 +533,7 @@ export async function installCodexMode(): Promise<{ success: boolean, message: s
       // (antigravity/codex) when no config, so placeholders never leak.
       let content = await fs.readFile(agentsMdSrc, 'utf-8')
       content = injectConfigVariables(content, injectOpts)
+      content = replaceHomePathsInTemplate(content, join(homedir(), '.claude'))
       await fs.writeFile(join(codexHome, 'AGENTS.md'), content, 'utf-8')
     }
 
@@ -1184,7 +1185,7 @@ export async function uninstallWorkflows(installDir: string, options?: { preserv
   // Remove CCG rules files
   if (await fs.pathExists(rulesDir)) {
     try {
-      for (const ruleFile of ['ccg-skills.md', 'ccg-grok-search.md', 'ccg-skill-routing.md']) {
+      for (const ruleFile of ['ccg-skills.md', 'ccg-grok-search.md', 'ccg-skill-routing.md', 'ccg-codegraph.md']) {
         const rulePath = join(rulesDir, ruleFile)
         if (await fs.pathExists(rulePath)) {
           await fs.remove(rulePath)

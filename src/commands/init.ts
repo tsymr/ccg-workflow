@@ -268,6 +268,7 @@ export async function init(options: InitOptions = {}): Promise<void> {
 
   // Grok Search MCP
   let wantGrokSearch = false
+  let wantCodeGraph = false
   let tavilyKey = ''
   let firecrawlKey = ''
   let grokApiUrl = ''
@@ -494,6 +495,7 @@ export async function init(options: InitOptions = {}): Promise<void> {
       contextWeaverApiKey = ''
       wantFastContext = false
       wantGrokSearch = false
+      wantCodeGraph = false
       tavilyKey = ''
       firecrawlKey = ''
       grokApiUrl = ''
@@ -523,6 +525,10 @@ export async function init(options: InitOptions = {}): Promise<void> {
             value: 'grok-search',
           },
           {
+            name: `codegraph ${ansis.gray('— 本地代码知识图谱 (调用链/影响范围/架构)')}`,
+            value: 'codegraph',
+          },
+          {
             name: `contextweaver ${ansis.gray('— 硅基流动嵌入检索 (需 API Key)')}`,
             value: 'contextweaver',
           },
@@ -532,8 +538,10 @@ export async function init(options: InitOptions = {}): Promise<void> {
       const hasAceTool = selectedTools.includes('ace-tool')
       const hasFastContext = selectedTools.includes('fast-context')
       const hasContextWeaver = selectedTools.includes('contextweaver')
+      const hasCodeGraph = selectedTools.includes('codegraph')
       wantFastContext = hasFastContext
       wantGrokSearch = selectedTools.includes('grok-search')
+      wantCodeGraph = hasCodeGraph
 
       if (hasAceTool) {
         mcpProvider = 'ace-tool'
@@ -1029,6 +1037,23 @@ export async function init(options: InitOptions = {}): Promise<void> {
         console.log()
         console.log(`    ${ansis.yellow('⚠')} grok-search MCP ${i18n.t('init:grok.installFailed')}`)
         console.log(ansis.gray(`      ${grokResult.message}`))
+      }
+    }
+
+    // Install CodeGraph MCP if requested (no API key needed — pure local)
+    if (wantCodeGraph) {
+      const cgResult = await installMcpServer(
+        'codegraph',
+        'npx',
+        ['-y', '@colbymchenry/codegraph@latest', 'serve', '--mcp'],
+      )
+      if (cgResult.success) {
+        console.log()
+        console.log(`    ${ansis.green('✓')} CodeGraph MCP ${ansis.gray('→ ~/.claude.json')}`)
+      }
+      else {
+        console.log()
+        console.log(`    ${ansis.yellow('⚠')} CodeGraph: ${ansis.gray(cgResult.message)}`)
       }
     }
 
